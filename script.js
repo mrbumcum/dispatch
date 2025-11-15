@@ -186,7 +186,6 @@ function switchDeck(deckId) {
 
 // Render deck selector buttons based on `decks` object
 
-
 function loadFlashcards() {
     // Try to load custom cards from localStorage first
     const saved = localStorage.getItem(`flashcards_${currentDeck}`);
