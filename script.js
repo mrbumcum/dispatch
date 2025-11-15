@@ -96,9 +96,38 @@ const addCardBtn = document.getElementById('addCardBtn');
 const themeToggle = document.getElementById('themeToggle');
 const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
 const deckTitle = document.getElementById('deckTitle');
-const deckButtons = document.querySelectorAll('.deck-btn');
 
-// Theme Management
+// Deck Management
+function switchDeck(deckId) {
+    currentDeck = deckId;
+    currentCardIndex = 0;
+    isFlipped = false;
+    
+    // Update active button
+    document.querySelectorAll('.deck-btn').forEach(btn => {
+        if (btn.dataset.deck === deckId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Update title
+    deckTitle.textContent = decks[deckId].name;
+    // Update add-card input placeholders for this deck
+    if (frontInput) frontInput.placeholder = deckId === 'vitals' ? 'Condition' : 'Drug name';
+    if (backInput) backInput.placeholder = deckId === 'vitals' ? 'Vital signs' : 'Indications, dosage, contraindications, side effects';
+    // Add a body class so CSS can adapt card styles for the vitals deck
+    document.body.classList.toggle('vitals-deck', deckId === 'vitals');
+    
+    // Load deck cards
+    loadFlashcards();
+    updateCard();
+    updateButtons();
+    
+    // Save current deck preference
+    localStorage.setItem('currentDeck', deckId);
+}
 function initTheme() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     if (savedTheme === 'light') {
@@ -333,20 +362,114 @@ function addCard() {
     }, 1500);
 }
 
+// Utility: slugify deck names into ids
+function slugify(text) {
+    return text.toString().toLowerCase().trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+// Render deck selector buttons based on `decks` object
+function renderDeckButtons() {
+    const container = document.querySelector('.deck-selector');
+    if (!container) return;
+    const html = Object.keys(decks).map(id => {
+        const name = decks[id].name || id;
+        return `<button class="deck-btn" data-deck="${id}">${name}</button>`;
+    }).join('');
+    container.innerHTML = html;
+    // attach listeners
+    document.querySelectorAll('.deck-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchDeck(btn.dataset.deck));
+    });
+}
+
 // Initialize
 function init() {
     initTheme();
     
     // Load saved deck preference or default to drugs
     const savedDeck = localStorage.getItem('currentDeck') || 'drugs';
+    // Load any custom decks saved previously
+    const savedCustom = JSON.parse(localStorage.getItem('customDecks') || '{}');
+    Object.keys(savedCustom).forEach(id => {
+        if (!decks[id]) decks[id] = { name: savedCustom[id], cards: [] };
+    });
+
+    renderDeckButtons();
     switchDeck(savedDeck);
 
     // Deck selector event listeners
-    deckButtons.forEach(btn => {
+    const deckBtns = document.querySelectorAll('.deck-btn');
+    deckBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             switchDeck(btn.dataset.deck);
         });
     });
+
+    // Add Deck Modal handlers
+    const modal = document.getElementById('addDeckModal');
+    const floatingBtn = document.getElementById('addDeckFloatingBtn');
+    const closeBtn = document.querySelector('.modal-close');
+    const confirmBtn = document.getElementById('confirmAddDeckBtn');
+    const newDeckInput = document.getElementById('newDeckName');
+
+    if (floatingBtn) {
+        floatingBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+            newDeckInput.focus();
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+            newDeckInput.value = '';
+        });
+    }
+
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            const name = newDeckInput.value.trim();
+            if (!name) {
+                alert('Please enter a deck name');
+                return;
+            }
+            const id = slugify(name);
+            if (decks[id]) {
+                alert('A deck with that name already exists');
+                return;
+            }
+            decks[id] = { name, cards: [] };
+            // persist custom deck names
+            const saved = JSON.parse(localStorage.getItem('customDecks') || '{}');
+            saved[id] = name;
+            localStorage.setItem('customDecks', JSON.stringify(saved));
+            renderDeckButtons();
+            switchDeck(id);
+            newDeckInput.value = '';
+            modal.style.display = 'none';
+        });
+    }
+
+    // Allow Enter key to create deck
+    if (newDeckInput) {
+        newDeckInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    if (modal) {
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                newDeckInput.value = '';
+            }
+        });
+    }
 }
 
 
