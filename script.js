@@ -96,7 +96,7 @@ const addCardBtn = document.getElementById('addCardBtn');
 const themeToggle = document.getElementById('themeToggle');
 const themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
 const deckTitle = document.getElementById('deckTitle');
-// deck buttons are rendered dynamically; query when needed
+const deckButtons = document.querySelectorAll('.deck-btn');
 
 // Theme Management
 function initTheme() {
@@ -156,19 +156,7 @@ function switchDeck(deckId) {
 }
 
 // Render deck selector buttons based on `decks` object
-function renderDeckButtons() {
-    const container = document.querySelector('.deck-selector');
-    if (!container) return;
-    const html = Object.keys(decks).map(id => {
-        const name = decks[id].name || id;
-        return `<button class="deck-btn" data-deck="${id}">${name}</button>`;
-    }).join('');
-    container.innerHTML = html;
-    // attach listeners
-    document.querySelectorAll('.deck-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchDeck(btn.dataset.deck));
-    });
-}
+
 
 function loadFlashcards() {
     // Try to load custom cards from localStorage first
@@ -351,49 +339,16 @@ function init() {
     
     // Load saved deck preference or default to drugs
     const savedDeck = localStorage.getItem('currentDeck') || 'drugs';
-    // Load any custom decks saved previously
-    const savedCustom = JSON.parse(localStorage.getItem('customDecks') || '{}');
-    Object.keys(savedCustom).forEach(id => {
-        if (!decks[id]) decks[id] = { name: savedCustom[id], cards: [] };
-    });
-
-    renderDeckButtons();
     switchDeck(savedDeck);
 
-    // Add deck UI
-    const addDeckBtn = document.getElementById('addDeckBtn');
-    const newDeckName = document.getElementById('newDeckName');
-    if (addDeckBtn && newDeckName) {
-        addDeckBtn.addEventListener('click', () => {
-            const name = newDeckName.value.trim();
-            if (!name) {
-                alert('Please enter a deck name');
-                return;
-            }
-            // create an id
-            const id = slugify(name);
-            if (decks[id]) {
-                alert('A deck with that name already exists');
-                return;
-            }
-            decks[id] = { name, cards: [] };
-            // persist custom deck names
-            const saved = JSON.parse(localStorage.getItem('customDecks') || '{}');
-            saved[id] = name;
-            localStorage.setItem('customDecks', JSON.stringify(saved));
-            renderDeckButtons();
-            switchDeck(id);
-            newDeckName.value = '';
+    // Deck selector event listeners
+    deckButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            switchDeck(btn.dataset.deck);
         });
-    }
+    });
 }
 
-// Utility: slugify deck names into ids
-function slugify(text) {
-    return text.toString().toLowerCase().trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
 
 // Theme toggle event listener
 if (themeToggle) {

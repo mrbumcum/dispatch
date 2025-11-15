@@ -68,7 +68,7 @@ body {
     justify-content: center;
     align-items: center;
     padding: 20px;
-    overflow: auto;
+    overflow: hidden;
     transition: background 0.5s ease;
 }
 
@@ -129,7 +129,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    overflow: auto;
+    overflow: hidden;
     box-shadow: 0 8px 32px var(--container-shadow),
                 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     transition: all 0.5s ease;
@@ -160,30 +160,7 @@ body.light-mode .header h1 {
     margin-bottom: 12px;
 }
 
-.add-deck {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.add-deck input {
-    padding: 8px 12px;
-    border-radius: 18px;
-    border: 1px solid var(--input-border);
-    background: var(--input-bg);
-    color: var(--text-primary);
-    outline: none;
-}
-
-.add-deck button {
-    padding: 8px 14px;
-    border-radius: 18px;
-    border: none;
-    background: linear-gradient(135deg, #6BCEFF 0%, #9D7FFF 100%);
-    color: #fff;
-    cursor: pointer;
-}
+/* add-deck styles removed (UI reverted) */
 
 .deck-btn {
     padding: 8px 20px;
