@@ -141,8 +141,8 @@ function switchDeck(deckId) {
     // Update title
     deckTitle.textContent = decks[deckId].name;
     // Update add-card input placeholders for this deck
-    if (frontInput) frontInput.placeholder = deckId === 'vitals' ? 'Condition' : 'Drug name...';
-    if (backInput) backInput.placeholder = deckId === 'vitals' ? 'Vital signs' : 'Indications, dosage, contraindications, side effects...';
+    if (frontInput) frontInput.placeholder = deckId === 'vitals' ? 'Condition' : 'Drug name';
+    if (backInput) backInput.placeholder = deckId === 'vitals' ? 'Vital signs' : 'Indications, dosage, contraindications, side effects';
     // Add a body class so CSS can adapt card styles for the vitals deck
     document.body.classList.toggle('vitals-deck', deckId === 'vitals');
     
