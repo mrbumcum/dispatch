@@ -97,6 +97,7 @@ const Index = () => {
   const dispatchSoundRef = useRef<HTMLAudioElement | null>(null);
   const hasAutoPlayedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const transcriptBufferRef = useRef<string>('');
 
   // Patient AI System Prompt
   const PATIENT_PROMPT = `You are a patient in an emergency medical situation. You are experiencing symptoms, pain, or have visible injuries. 
@@ -142,37 +143,69 @@ Provide feedback after key assessment steps.`;
   useEffect(() => {
     // Initialize speech recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      const SpeechRecognitionClass = window.webkitSpeechRecognition || window.SpeechRecognition;
+      const recognition = new SpeechRecognitionClass() as SpeechRecognition;
+      recognition.continuous = true; // Keep recording until manually stopped
+      recognition.interimResults = true; // Get interim results for better UX
       recognition.lang = 'en-US';
       
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript.trim()) {
-          // Store transcript to be processed by sendMessage
-          // We'll trigger a custom event or use a ref to pass it to sendMessage
-          const event = new CustomEvent('speechTranscribed', { detail: transcript.trim() });
-          window.dispatchEvent(event);
+        // Collect all results (including interim)
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript + ' ';
+          }
         }
-        setIsListening(false);
+        
+        // Update buffer with all transcribed text (use ref for immediate access)
+        const fullTranscript = (finalTranscript + interimTranscript).trim();
+        if (fullTranscript) {
+          transcriptBufferRef.current = fullTranscript;
+        }
       };
       
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      toast({
-          title: "Speech Recognition Error",
-          description: event.error === 'no-speech' 
-            ? 'No speech detected. Please try again.' 
-            : `Error: ${event.error}`,
-          variant: "destructive"
-        });
+        // Don't stop on 'no-speech' error in continuous mode - it's normal
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          setIsListening(false);
+          toast({
+            title: "Speech Recognition Error",
+            description: `Error: ${event.error}`,
+            variant: "destructive"
+          });
+        }
       };
       
       recognition.onend = () => {
-        setIsListening(false);
+        // In continuous mode, onend fires when recognition stops
+        // If user manually stopped (isListening is false), process the transcript
+        // Otherwise, it might have stopped due to timeout/error, so restart if still listening
+        if (!isListening) {
+          // User manually stopped, process the transcript from ref
+          const finalTranscript = transcriptBufferRef.current.trim();
+          if (finalTranscript) {
+            const event = new CustomEvent('speechTranscribed', { detail: finalTranscript });
+            window.dispatchEvent(event);
+            transcriptBufferRef.current = ''; // Clear buffer after sending
+          }
+        } else {
+          // Recognition ended but we're still in listening mode - restart it
+          // This handles cases where recognition stops due to timeout
+          try {
+            recognitionRef.current?.start();
+          } catch (error) {
+            // If restart fails, stop listening
+            console.error('Error restarting speech recognition:', error);
+            setIsListening(false);
+          }
+        }
       };
       
       recognitionRef.current = recognition;
@@ -766,7 +799,7 @@ Provide feedback after key assessment steps.`;
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading || !scenarioStarted) return;
 
-    const userMessage: Message = {
+        const userMessage: Message = {
       id: `user-${Date.now()}`,
       speaker: 'user',
       text: text.trim(),
@@ -792,16 +825,65 @@ Provide feedback after key assessment steps.`;
       const patientResponse = await callGeminiAPI(patientPrompt, PATIENT_PROMPT, conversationHistory);
       const patientStageDirections = extractStageDirections(patientResponse);
       
+      const patientMessageId = `patient-${Date.now()}`;
       setMessages(prev => [
         ...prev,
         {
-          id: `patient-${Date.now()}`,
+          id: patientMessageId,
           speaker: 'patient',
           text: patientResponse,
           timestamp: new Date(),
           stageDirections: patientStageDirections
         }
       ]);
+
+      // Auto-play patient audio response (always play, regardless of view)
+      setTimeout(async () => {
+        try {
+          let patientVoiceId;
+          if (currentScenario?.dispatchInfo) {
+            const { age, gender } = currentScenario.dispatchInfo;
+            patientVoiceId = selectPatientVoice(age, gender);
+          } else {
+            patientVoiceId = 'ErXwobaYiN019PkySvjV';
+          }
+          
+          const patientAudioUrl = await textToSpeech(
+            patientResponse,
+            patientVoiceId,
+            'patient',
+            patientStageDirections || []
+          );
+          
+          const patientAudio = new Audio(patientAudioUrl);
+          audioRef.current = patientAudio;
+          setPlayingAudio(patientMessageId);
+          setCurrentSpeaker('patient');
+          setIsSpeaking(true);
+          
+          patientAudio.onended = () => {
+            setIsSpeaking(false);
+            setPlayingAudio(null);
+            setCurrentSpeaker(null);
+            URL.revokeObjectURL(patientAudioUrl);
+          };
+          
+          patientAudio.onerror = (error) => {
+            console.error('Patient audio playback error:', error);
+            setIsSpeaking(false);
+            setPlayingAudio(null);
+            setCurrentSpeaker(null);
+            URL.revokeObjectURL(patientAudioUrl);
+          };
+          
+          await patientAudio.play();
+        } catch (error) {
+          console.error('Error playing patient audio:', error);
+          setIsSpeaking(false);
+          setPlayingAudio(null);
+          setCurrentSpeaker(null);
+        }
+      }, 500);
 
       const dispatcherPrompt = `The EMT student just asked the patient: "${text}"
       The patient responded: "${patientResponse}"
@@ -828,7 +910,7 @@ Provide feedback after key assessment steps.`;
           id: `dispatcher-${Date.now()}`,
           speaker: 'dispatcher',
           text: dispatcherResponse,
-          timestamp: new Date(),
+            timestamp: new Date(),
           stageDirections: []
         }
       ]);
@@ -841,13 +923,11 @@ Provide feedback after key assessment steps.`;
     } finally {
       setIsLoading(false);
     }
-  }, [messages, currentScenario, isLoading, scenarioStarted, toast, callGeminiAPI, PATIENT_PROMPT, DISPATCHER_PROMPT, extractStageDirections]);
+  }, [messages, currentScenario, isLoading, scenarioStarted, view, toast, callGeminiAPI, PATIENT_PROMPT, DISPATCHER_PROMPT, extractStageDirections, textToSpeech, selectPatientVoice]);
 
   const handleMicToggle = () => {
-    // Microphone button for future speech recognition
-    // This should NOT trigger audio playback - only toggle listening state
-    // Users should use the "New Scenario" button to start scenarios
-    // or the text input in transcript view to send messages
+    // Microphone button for speech recognition
+    // Click once to start recording, click again to stop and send to patient AI
     if (!scenarioStarted) {
       // If no scenario started, show a message to use "New Scenario" button instead
       toast({
@@ -869,17 +949,28 @@ Provide feedback after key assessment steps.`;
     
     // Toggle listening state
     if (isListening) {
-      // Stop listening
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      // Start listening
+      // Stop listening and process transcript
       try {
+        recognitionRef.current.stop();
+        setIsListening(false);
+        // Transcript will be processed in onend handler
+        toast({
+          title: "Recording Stopped",
+          description: "Processing your message...",
+        });
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error);
+        setIsListening(false);
+      }
+    } else {
+      // Start listening (continuous mode - keeps recording until you click again)
+      try {
+        transcriptBufferRef.current = ''; // Clear previous transcript
         recognitionRef.current.start();
         setIsListening(true);
         toast({
-          title: "Listening...",
-          description: "Speak your question or assessment",
+          title: "Recording...",
+          description: "Speak your question or assessment. Click microphone again when finished.",
         });
       } catch (error) {
         console.error('Error starting speech recognition:', error);
