@@ -82,6 +82,15 @@ interface Scenario {
   };
 }
 
+interface Intervention {
+  question: string;
+  option1: string;
+  option2: string;
+  correctAnswer: 1 | 2;
+  vitalSignToUpdate: 'bloodPressure' | 'heartRate' | 'oxygenSaturation' | 'temperature' | 'respiratoryRate' | 'glucose';
+  newValue: string;
+}
+
 const PatientSimulation = () => {
   const navigate = useNavigate();
   const [view, setView] = useState<"visual" | "transcript">("visual");
@@ -104,6 +113,10 @@ const PatientSimulation = () => {
     respiratoryRate?: string | null;
     glucose?: string | null;
   }>({});
+  const [intervention, setIntervention] = useState<Intervention | null>(null);
+  const [interventionShown, setInterventionShown] = useState(false);
+  const [vitalSignChecked, setVitalSignChecked] = useState(0);
+  const vitalSignCheckedRef = useRef(0);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dispatchSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -465,13 +478,148 @@ Provide feedback after key assessment steps.`;
     return text.replace(/\([^)]+\)/g, '').trim();
   };
 
+  // Validate that intervention value is in normal range
+  const isInNormalRange = (
+    vitalSign: string,
+    value: string
+  ): boolean => {
+    const num = parseFloat(value.replace(/[^\d.]/g, ''));
+    if (isNaN(num)) return false;
+    
+    switch (vitalSign) {
+      case 'oxygenSaturation':
+        // Normal: 95-100%
+        return num >= 95 && num <= 100;
+      case 'glucose':
+        // Normal: 70-100 mg/dL
+        return num >= 70 && num <= 100;
+      case 'heartRate':
+        // Normal: 60-100 bpm
+        return num >= 60 && num <= 100;
+      case 'respiratoryRate':
+        // Normal: 12-20 bpm
+        return num >= 12 && num <= 20;
+      case 'temperature':
+        // Normal: 97-99.5°F
+        return num >= 97 && num <= 99.5;
+      case 'bloodPressure':
+        // Normal: systolic 90-120, diastolic 60-80
+        const bp = value.split('/');
+        if (bp.length === 2) {
+          const systolic = parseFloat(bp[0]);
+          const diastolic = parseFloat(bp[1]);
+          return systolic >= 90 && systolic <= 120 && diastolic >= 60 && diastolic <= 80;
+        }
+        return false;
+      default:
+        return true;
+    }
+  };
+
+  // Validate that intervention value is actually an improvement and in normal range
+  const validateInterventionImprovement = (
+    vitalSign: string,
+    currentValue: string | null | undefined,
+    interventionValue: string
+  ): boolean => {
+    // First check if intervention value is in normal range
+    if (!isInNormalRange(vitalSign, interventionValue)) {
+      console.warn(`Intervention value ${interventionValue} is not in normal range for ${vitalSign}`);
+      return false;
+    }
+    
+    if (!currentValue) return true; // If no current value, check if it's in normal range
+    
+    const currentNum = parseFloat(currentValue.replace(/[^\d.]/g, ''));
+    const interventionNum = parseFloat(interventionValue.replace(/[^\d.]/g, ''));
+    
+    if (isNaN(currentNum) || isNaN(interventionNum)) return true; // If can't parse, allow it if in normal range
+    
+    switch (vitalSign) {
+      case 'oxygenSaturation':
+      case 'glucose':
+        // For oxygen and glucose, higher is better (assuming low was the problem)
+        return interventionNum > currentNum;
+      case 'heartRate':
+      case 'respiratoryRate':
+        // For heart rate and respiratory rate, lower is usually better (assuming high was the problem)
+        // But we need to check if current is high (abnormal)
+        return currentNum > 100 ? interventionNum < currentNum : true;
+      case 'temperature':
+        // For temperature, lower is better if fever (assuming high was the problem)
+        return currentNum > 99.5 ? interventionNum < currentNum : true;
+      case 'bloodPressure':
+        // For blood pressure, we need to parse systolic/diastolic
+        const currentBP = currentValue.split('/');
+        const interventionBP = interventionValue.split('/');
+        if (currentBP.length === 2 && interventionBP.length === 2) {
+          const currentSystolic = parseFloat(currentBP[0]);
+          const interventionSystolic = parseFloat(interventionBP[0]);
+          // If low BP (systolic < 100), higher is better
+          // If high BP (systolic > 140), lower is better
+          if (currentSystolic < 100) {
+            return interventionSystolic > currentSystolic;
+          } else if (currentSystolic > 140) {
+            return interventionSystolic < currentSystolic;
+          }
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+
   // Generate vital signs based on scenario (not from patient response)
-  const generateVitalSigns = async (): Promise<void> => {
+  const generateVitalSigns = async (checkCount?: number): Promise<void> => {
     if (!currentScenario) return;
     
     try {
       setIsTakingVitalSigns(true);
       
+      // Use the passed count or fall back to state
+      const currentCheckCount = checkCount !== undefined ? checkCount : vitalSignChecked;
+      console.log('generateVitalSigns called with checkCount:', checkCount, 'vitalSignChecked state:', vitalSignChecked, 'currentCheckCount:', currentCheckCount);
+      
+      // If this is the second time checking vital signs (vitalSignChecked == 2), set ALL vital signs to normal (blue) values
+      if (currentCheckCount === 2) {
+        console.log('Second vital signs check detected - setting all vital signs to normal (blue) values');
+        
+        // Simulate taking vital signs (2-3 second delay)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Set all vital signs to random normal values within specified ranges
+        const normalVitals = {
+          bloodPressure: `${Math.floor(Math.random() * 11) + 110}/${Math.floor(Math.random() * 11) + 70}`, // 110-120/70-80
+          heartRate: String(Math.floor(Math.random() * 41) + 60), // 60-100 (normal range)
+          oxygenSaturation: String(Math.floor(Math.random() * 6) + 95), // 95-100 (normal range)
+          temperature: '98.6', // Normal: 98.6
+          respiratoryRate: String(Math.floor(Math.random() * 9) + 12), // 12-20 (normal range)
+          glucose: String(Math.floor(Math.random() * 31) + 70) // 70-100 (normal range)
+        };
+        
+        console.log('Setting all vital signs to normal values:', normalVitals);
+        
+        // Force a complete state update by setting all vital signs at once
+        // Use a new object reference to ensure React detects the change
+        setVitalSigns({
+          bloodPressure: normalVitals.bloodPressure,
+          heartRate: normalVitals.heartRate,
+          oxygenSaturation: normalVitals.oxygenSaturation,
+          temperature: normalVitals.temperature,
+          respiratoryRate: normalVitals.respiratoryRate,
+          glucose: normalVitals.glucose
+        });
+        
+        console.log('State update called - vital signs should update to:', normalVitals);
+        
+        // Small delay to ensure state update is processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        setIsTakingVitalSigns(false);
+        return;
+      }
+      
+      // Normal generation for first time taking vitals
       const generationPrompt = `You are a medical professional determining realistic vital signs for a patient based on their condition.
 
 Scenario details: ${currentScenario.details}
@@ -556,6 +704,128 @@ Format rules:
       setIsTakingVitalSigns(false);
     }
   };
+
+  // Check if an intervention is needed based on conversation context
+  const checkIntervention = useCallback(async (userQuestion: string, patientResponse: string): Promise<void> => {
+    if (!currentScenario) return;
+    
+    // Only show one intervention per scenario
+    if (interventionShown) {
+      console.log('Intervention already shown for this scenario, skipping');
+      return;
+    }
+    
+    try {
+      // Build conversation context from current messages state
+      const currentMessages = messages;
+      const conversationContext = currentMessages
+        .filter(m => m.speaker === 'user' || m.speaker === 'patient')
+        .slice(-6)
+        .map(m => `${m.speaker === 'user' ? 'EMT' : 'Patient'}: ${m.text}`)
+        .join('\n');
+      
+      // Get current vital signs to help AI determine appropriate improvement
+      const currentVitalsInfo = Object.entries(vitalSigns)
+        .filter(([_, value]) => value !== null && value !== undefined)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+
+      const interventionPrompt = `You are an EMT training system. Analyze the conversation between an EMT student and a patient to determine if an intervention question should be presented.
+
+Conversation context:
+${conversationContext}
+
+Latest exchange:
+EMT: "${userQuestion}"
+Patient: "${patientResponse}"
+
+Scenario: ${currentScenario.details}
+${currentVitalsInfo ? `Current vital signs: ${currentVitalsInfo}` : 'No vital signs measured yet'}
+
+Determine if there's a clear indication for a medical intervention (medication, treatment, or action) that would affect vital signs. Examples:
+- Low blood sugar mentioned → intervention question about giving glucose/sugar
+- High blood pressure mentioned → intervention question about medication
+- Pain mentioned → intervention question about pain management
+- Breathing difficulty → intervention question about oxygen or positioning
+- Dehydration → intervention question about IV fluids
+
+If an intervention is appropriate, return ONLY a valid JSON object with this exact structure:
+{
+  "shouldShow": true,
+  "question": "What should you give to this patient?",
+  "option1": "Correct intervention option",
+  "option2": "Incorrect intervention option",
+  "correctAnswer": 1,
+  "vitalSignToUpdate": "glucose",
+  "newValue": "120"
+}
+
+If NO intervention is appropriate, return:
+{
+  "shouldShow": false
+}
+
+Vital sign options: "bloodPressure", "heartRate", "oxygenSaturation", "temperature", "respiratoryRate", "glucose"
+- For bloodPressure, use format "120/80"
+- For heartRate, use just the number (e.g., "85")
+- For oxygenSaturation, use just the number (e.g., "98")
+- For temperature, use Fahrenheit (e.g., "98.6")
+- For respiratoryRate, use just the number (e.g., "18")
+- For glucose, use just the number (e.g., "95")
+
+IMPORTANT: The newValue MUST be in the NORMAL/HEALTHY range after the correct intervention. The intervention should restore the vital sign to normal values, not just improve it slightly:
+
+- If giving glucose for low blood sugar: glucose should return to NORMAL range (70-100 mg/dL) - use values like 85-95
+- If giving oxygen for low O2: oxygen saturation should return to NORMAL range (95-100%) - use values like 96-98
+- If giving pain medication for elevated heart rate: heart rate should return to NORMAL range (60-100 bpm) - use values like 75-85
+- If giving IV fluids for low blood pressure: blood pressure should return to NORMAL range (120/80 is ideal) - use values like 115/75 to 120/80
+- If treating fever: temperature should return to NORMAL range (98.6°F is normal) - use values like 98.6-99.0°F
+- If treating respiratory distress: respiratory rate should return to NORMAL range (12-20 bpm) - use values like 16-18
+
+CRITICAL: The newValue MUST be within the normal/healthy range for that vital sign. Do NOT use values that are still abnormal (too high or too low). The intervention should fully normalize the vital sign to show it's working correctly.
+Return ONLY valid JSON, no markdown, no code blocks, no explanations.`;
+
+      const response = await callGeminiAPI(interventionPrompt, '', []);
+      
+      // Parse JSON from response
+      let jsonString = response.trim();
+      jsonString = jsonString.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const interventionData = JSON.parse(jsonMatch[0]);
+          console.log('Parsed intervention data:', interventionData);
+          
+          if (interventionData.shouldShow && interventionData.question && interventionData.option1 && interventionData.option2) {
+            const intervention: Intervention = {
+              question: interventionData.question,
+              option1: interventionData.option1,
+              option2: interventionData.option2,
+              correctAnswer: (interventionData.correctAnswer === 1 ? 1 : 2) as 1 | 2,
+              vitalSignToUpdate: interventionData.vitalSignToUpdate as Intervention['vitalSignToUpdate'],
+              newValue: String(interventionData.newValue)
+            };
+            console.log('Setting intervention:', intervention);
+            setIntervention(intervention);
+            setInterventionShown(true); // Mark that an intervention has been shown for this scenario
+          } else {
+            console.log('Intervention data incomplete, not showing');
+            setIntervention(null);
+          }
+        } catch (parseError) {
+          console.error('Error parsing intervention JSON:', parseError, 'JSON string:', jsonMatch[0]);
+          setIntervention(null);
+        }
+      } else {
+        console.log('No JSON match found in response:', jsonString);
+        setIntervention(null);
+      }
+    } catch (error) {
+      console.error('Error checking intervention:', error);
+      setIntervention(null);
+    }
+  }, [messages, currentScenario, callGeminiAPI, vitalSigns, interventionShown]);
 
   // Extract vital signs from patient response using Gemini (DEPRECATED - kept for backwards compatibility)
   const extractVitalSigns = async (patientResponse: string, userQuestion: string): Promise<void> => {
@@ -704,7 +974,20 @@ Format rules:
   const selectPatientVoice = (age: string, gender: string): string => {
     const ageNum = parseInt(age);
     
-    if (ageNum < 13) {
+    // For children 5 years old or younger, use higher-pitched voices that can sound more child-like
+    if (ageNum <= 5) {
+      if (gender === 'F' || gender === 'Female') {
+        // Child female voice - using a higher-pitched voice (Bella is naturally higher-pitched)
+        return 'EXAVITQu4vr4xnSDxMaL'; // Bella - naturally higher-pitched female voice
+      } else {
+        // Child male voice - using a younger-sounding, higher-pitched voice
+        // Try using a voice that's naturally higher-pitched
+        return 'VR6AewLTigWG4xSOukaG'; // Arnold - young male voice
+      }
+    }
+    
+    // For older children (6-12)
+    if (ageNum > 5 && ageNum < 13) {
       if (gender === 'F' || gender === 'Female') {
         return 'EXAVITQu4vr4xnSDxMaL'; // Bella - young female
       } else {
@@ -712,6 +995,7 @@ Format rules:
       }
     }
     
+    // For teenagers and young adults (13-25)
     if (ageNum >= 13 && ageNum <= 25) {
       if (gender === 'F' || gender === 'Female') {
         return 'EXAVITQu4vr4xnSDxMaL'; // Bella
@@ -720,6 +1004,7 @@ Format rules:
       }
     }
     
+    // For adults (26+)
     if (gender === 'F' || gender === 'Female') {
       return '21m00Tcm4TlvDq8ikWAM'; // Rachel
     } else {
@@ -747,17 +1032,29 @@ Format rules:
         throw new Error('No text to convert to speech');
       }
 
+      // Check if patient is a young child (5 years old or younger)
+      const isYoungChild = voiceType === 'patient' && currentScenario?.dispatchInfo && parseInt(currentScenario.dispatchInfo.age) <= 5;
       const isChild = voiceType === 'patient' && currentScenario?.dispatchInfo && parseInt(currentScenario.dispatchInfo.age) < 13;
       
       const baseVoiceSettings = voiceType === 'patient' 
-        ? isChild
+        ? isYoungChild
           ? {
+              // Voice settings for very young children (5 and under) - more expressive, higher variation
+              stability: 0.15, // Lower stability for more variation (children's speech is less stable)
+              similarity_boost: 0.7,
+              style: 0.9, // Very high style for maximum expressiveness and child-like variation
+              use_speaker_boost: true
+            }
+          : isChild
+          ? {
+              // Voice settings for older children (6-12)
               stability: 0.25,
               similarity_boost: 0.7,
               style: 0.65,
               use_speaker_boost: true
             }
           : {
+              // Voice settings for adults
               stability: 0.2,
               similarity_boost: 0.65,
               style: 0.6,
@@ -962,6 +1259,10 @@ Format rules:
     setCurrentScenario(null);
     setIsSpeaking(false);
     setVitalSigns({}); // Reset vital signs for new scenario
+    setIntervention(null); // Clear any active intervention
+    setInterventionShown(false); // Reset intervention shown flag for new scenario
+    setVitalSignChecked(0); // Reset vital sign check counter for new scenario
+    vitalSignCheckedRef.current = 0; // Reset ref as well
     setIsTakingVitalSigns(false); // Reset taking vital signs state
     setPlayingAudio(null);
     setCurrentSpeaker(null);
@@ -1111,8 +1412,30 @@ Format rules:
         );
         
         if (gavePermission) {
+          // Calculate the new count using the ref to get the current value
+          vitalSignCheckedRef.current = vitalSignCheckedRef.current + 1;
+          const newCheckCount = vitalSignCheckedRef.current;
+          
+          console.log('Vital signs check - previous count:', vitalSignCheckedRef.current - 1, 'new count:', newCheckCount);
+          
+          // Update state
+          setVitalSignChecked(newCheckCount);
+          
+          console.log('About to call generateVitalSigns with count:', newCheckCount);
+          
           // Generate vital signs automatically after permission
-          generateVitalSigns();
+          // Pass the new count so generateVitalSigns knows if it's the second check
+          await generateVitalSigns(newCheckCount);
+          
+          // If this was the second check, show success message
+          if (newCheckCount === 2) {
+            console.log('Second check completed - showing success message');
+            toast({
+              title: "Vital Signs Updated",
+              description: "All vital signs have improved to normal ranges after the intervention.",
+              variant: "default"
+            });
+          }
         }
       }
       
@@ -1127,6 +1450,12 @@ Format rules:
           stageDirections: patientStageDirections
         }
       ]);
+
+      // Check for intervention opportunities after patient responds
+      // Only check if no intervention has been shown yet
+      if (!interventionShown) {
+        checkIntervention(text, patientResponse);
+      }
 
       // Auto-play patient audio response (always play, regardless of view)
       setTimeout(async () => {
@@ -1222,7 +1551,13 @@ Format rules:
     } finally {
       setIsLoading(false);
     }
-  }, [messages, currentScenario, isLoading, scenarioStarted, view, toast, callGeminiAPI, PATIENT_PROMPT, DISPATCHER_PROMPT, extractStageDirections, textToSpeech, selectPatientVoice]);
+  }, [messages, currentScenario, isLoading, scenarioStarted, view, toast, callGeminiAPI, PATIENT_PROMPT, DISPATCHER_PROMPT, extractStageDirections, textToSpeech, selectPatientVoice, checkIntervention, generateVitalSigns, vitalSignChecked, interventionShown]);
+
+  // Debug: Track vital signs changes
+  useEffect(() => {
+    console.log('Vital signs state changed:', vitalSigns);
+    console.log('Vital sign checked count:', vitalSignChecked);
+  }, [vitalSigns, vitalSignChecked]);
 
   const handleMicToggle = () => {
     // Microphone button for speech recognition
@@ -1306,6 +1641,41 @@ Format rules:
     startNewScenario();
   };
 
+  const handleInterventionSelect = (selectedOption: 1 | 2) => {
+    if (!intervention) return;
+    
+    console.log('Intervention selected:', selectedOption);
+    console.log('Intervention data:', intervention);
+    console.log('Correct answer:', intervention.correctAnswer);
+    
+    if (selectedOption === intervention.correctAnswer) {
+      // Correct answer - intervention applied
+      // When vitals are taken the second time (vitalSignChecked == 2), all will be set to normal
+      console.log('Correct intervention selected.');
+      
+      toast({
+        title: "Correct!",
+        description: "Intervention applied. Ask the patient if you can take their vital signs again to see the improvement.",
+        variant: "default"
+      });
+      
+      // Small delay to ensure state update is visible before clearing intervention
+      setTimeout(() => {
+        setIntervention(null);
+      }, 100);
+    } else {
+      // Wrong answer - don't update vital signs
+      toast({
+        title: "Incorrect",
+        description: "That intervention is not appropriate for this patient.",
+        variant: "destructive"
+      });
+      
+      // Clear intervention after selection
+      setIntervention(null);
+    }
+  };
+
   return (
     <div className="h-screen bg-background transition-colors duration-500 flex flex-col overflow-hidden">
       <header className="flex-shrink-0 glass border-b border-border/50 z-50">
@@ -1348,7 +1718,11 @@ Format rules:
       <main className="flex-1 overflow-hidden flex flex-col lg:flex-row">
         {/* Vital Signs Panel - Left Side (Desktop) / Top (Mobile) */}
         <div className="lg:w-80 lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-border/50 p-4 overflow-y-auto max-h-[30vh] lg:max-h-none">
-          <VitalSigns vitals={vitalSigns} />
+          <VitalSigns 
+            vitals={vitalSigns} 
+            intervention={intervention}
+            onInterventionSelect={handleInterventionSelect}
+          />
         </div>
 
         {/* Main Content Area */}

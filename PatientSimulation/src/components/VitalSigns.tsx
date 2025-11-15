@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Droplet, Thermometer, Gauge, Activity, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, Droplet, Thermometer, Gauge, Activity, Eye, AlertCircle } from "lucide-react";
 
 interface VitalSign {
   name: string;
@@ -7,6 +8,15 @@ interface VitalSign {
   unit: string;
   icon: React.ReactNode;
   normalRange?: string;
+}
+
+interface Intervention {
+  question: string;
+  option1: string;
+  option2: string;
+  correctAnswer: 1 | 2;
+  vitalSignToUpdate: 'bloodPressure' | 'heartRate' | 'oxygenSaturation' | 'temperature' | 'respiratoryRate' | 'glucose';
+  newValue: string;
 }
 
 interface VitalSignsProps {
@@ -18,6 +28,8 @@ interface VitalSignsProps {
     respiratoryRate?: string | null;
     glucose?: string | null;
   };
+  intervention?: Intervention | null;
+  onInterventionSelect?: (selectedOption: 1 | 2) => void;
 }
 
 const vitalSignsList: Omit<VitalSign, 'value'>[] = [
@@ -59,7 +71,7 @@ const vitalSignsList: Omit<VitalSign, 'value'>[] = [
   }
 ];
 
-export const VitalSigns = ({ vitals }: VitalSignsProps) => {
+export const VitalSigns = ({ vitals, intervention, onInterventionSelect }: VitalSignsProps) => {
   const getVitalValue = (name: string): string | null => {
     switch (name) {
       case "Blood Pressure":
@@ -159,6 +171,35 @@ export const VitalSigns = ({ vitals }: VitalSignsProps) => {
             </div>
           );
         })}
+        
+        {/* Intervention Section */}
+        {intervention && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-5 h-5 text-primary" />
+              <CardTitle className="text-base font-semibold">Intervention</CardTitle>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-foreground">{intervention.question}</p>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left h-auto py-3 px-4 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                  onClick={() => onInterventionSelect?.(1)}
+                >
+                  <span className="text-sm">{intervention.option1}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left h-auto py-3 px-4 hover:bg-primary/10 hover:border-primary/50 transition-colors"
+                  onClick={() => onInterventionSelect?.(2)}
+                >
+                  <span className="text-sm">{intervention.option2}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

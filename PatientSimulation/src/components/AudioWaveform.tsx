@@ -19,7 +19,11 @@ export const AudioWaveform = ({ isActive }: AudioWaveformProps) => {
           }`}
           style={{
             height: isActive ? `${Math.random() * 50 + 10}px` : "6px",
-            animation: isActive ? `wave ${0.5 + Math.random() * 0.5}s ease-in-out infinite alternate` : "none",
+            animationName: isActive ? "wave" : "none",
+            animationDuration: isActive ? `${0.5 + Math.random() * 0.5}s` : "0s",
+            animationTimingFunction: isActive ? "ease-in-out" : "ease",
+            animationIterationCount: isActive ? "infinite" : "0",
+            animationDirection: isActive ? "alternate" : "normal",
             animationDelay: `${bar * 0.02}s`,
           }}
         />
