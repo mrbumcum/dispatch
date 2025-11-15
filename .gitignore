@@ -6,31 +6,6 @@ config.js
 .env.local
 .env.*.local
 
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Logs
-logs
-*.log
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -42,8 +17,4 @@ Thumbs.db
 *.swo
 *~
 
-# Build outputs
-dist/
-build/
-*.tsbuildinfo
 
