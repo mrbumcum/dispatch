@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMT Drug Cards</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <span class="theme-icon">🌙</span>
+    </button>
+    
+    <div class="container">
+        <div class="header">
+            <h1 id="deckTitle">EMT Drug Cards</h1>
+            <div class="deck-selector">
+                <button class="deck-btn active" data-deck="drugs">Drug Cards</button>
+                <button class="deck-btn" data-deck="vitals">Vital Signs</button>
+            </div>
+            <div class="card-counter">
+                <span id="currentCard">1</span> / <span id="totalCards">0</span>
+            </div>
+        </div>
+        
+        <div class="flashcard-container">
+            <div class="flashcard" id="flashcard">
+                <div class="card-front">
+                    <div class="card-content" id="frontContent">Click to flip</div>
+                </div>
+                <div class="card-back">
+                    <div class="card-content" id="backContent">Click to flip</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="prevBtn" class="nav-btn nav-btn-blue">
+                <span class="icon">←</span>
+                <span class="text">Previous</span>
+            </button>
+            <button id="flipBtn" class="flip-btn">
+                <span class="icon">↻</span>
+                <span class="text">Flip</span>
+            </button>
+            <button id="nextBtn" class="nav-btn nav-btn-red">
+                <span class="text">Next</span>
+                <span class="icon">→</span>
+            </button>
+        </div>
+        
+        <div class="add-card-section">
+            <h3>Add New Card</h3>
+            <div class="add-card-form">
+                <input type="text" id="frontInput" placeholder="Drug name..." />
+                <input type="text" id="backInput" placeholder="Indications, dosage, contraindications, side effects..." />
+                <button id="addCardBtn">Add Card</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
