@@ -509,5 +509,5 @@ backInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Initialize on load
-init();
+// Initialize on DOM ready so elements added after the script tag are available
+window.addEventListener('DOMContentLoaded', init);
