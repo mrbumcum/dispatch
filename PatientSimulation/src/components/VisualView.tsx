@@ -8,6 +8,7 @@ interface VisualViewProps {
   onMicToggle: () => void;
   characterName: string;
   characterRole: string;
+  isIncomingCall?: boolean;
 }
 
 export const VisualView = ({
@@ -16,6 +17,7 @@ export const VisualView = ({
   onMicToggle,
   characterName,
   characterRole,
+  isIncomingCall = false,
 }: VisualViewProps) => {
   return (
     <div className="relative flex flex-col items-center justify-center h-[calc(100vh-5rem)] p-4 overflow-hidden">
@@ -36,7 +38,12 @@ export const VisualView = ({
             {characterName}
           </h2>
           <p className="text-base text-muted-foreground">
-            {isSpeaking ? (
+            {isIncomingCall ? (
+              <span className="inline-flex items-center gap-2 text-accent animate-pulse">
+                <span className="w-2 h-2 bg-accent rounded-full animate-ping"></span>
+                📞 Incoming Call...
+              </span>
+            ) : isSpeaking ? (
               <span className="inline-flex items-center gap-2">
                 <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
                 {characterName} is speaking...

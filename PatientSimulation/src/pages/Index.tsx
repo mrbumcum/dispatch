@@ -91,6 +91,7 @@ const Index = () => {
   const [currentScenario, setCurrentScenario] = useState<Scenario | null>(null);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dispatchSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -211,6 +212,8 @@ Provide feedback after key assessment steps.`;
         const playDispatcher = async () => {
           try {
             // First, play the dispatch sound effect for 5 seconds
+            setIsIncomingCall(true);
+            setCurrentSpeaker(null); // Clear speaker during incoming call
             const dispatchSound = new Audio('/dispatch-sound.mp3');
             dispatchSoundRef.current = dispatchSound;
             
@@ -223,6 +226,7 @@ Provide feedback after key assessment steps.`;
                 dispatchSoundRef.current.currentTime = 0;
                 dispatchSoundRef.current = null;
               }
+              setIsIncomingCall(false);
             }, 5000);
             
             // Wait for dispatch sound to finish (5 seconds) before playing dispatcher voice
@@ -665,6 +669,7 @@ Provide feedback after key assessment steps.`;
     setIsSpeaking(false);
     setPlayingAudio(null);
     setCurrentSpeaker(null);
+    setIsIncomingCall(false);
     if (dispatchSoundRef.current) {
       dispatchSoundRef.current.pause();
       dispatchSoundRef.current = null;
@@ -947,8 +952,9 @@ Provide feedback after key assessment steps.`;
             isSpeaking={isSpeaking}
             isListening={isListening}
             onMicToggle={handleMicToggle}
-            characterName={currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
+            characterName={isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
             characterRole={currentScenario?.type || "Emergency Scene"}
+            isIncomingCall={isIncomingCall}
           />
         ) : (
           <TranscriptView
