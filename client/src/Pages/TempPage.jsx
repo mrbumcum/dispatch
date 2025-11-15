@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import './TempPage.css';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import '../styles/TempPage.css';
 
 // API Configuration - can be moved to environment variables or config file
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'YOUR_GEMINI_API_KEY_HERE';
@@ -16,10 +16,15 @@ function TempPage() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Scroll to bottom function wrapped in useCallback
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   // Focus input on mount
   useEffect(() => {
@@ -27,10 +32,6 @@ function TempPage() {
       inputRef.current.focus();
     }
   }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   // Helper function to format text with markdown-like formatting
   const formatMessage = (text) => {
@@ -82,7 +83,7 @@ function TempPage() {
       }
       
       // Handle lists
-      const listMatch = line.match(/^[\-\*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
+      const listMatch = line.match(/^[-*]\s+(.+)$/) || line.match(/^\d+\.\s+(.+)$/);
       if (listMatch) {
         if (!inList) {
           inList = true;
@@ -228,7 +229,7 @@ function TempPage() {
         
         <div className="chat-messages">
           {messages.map((message, index) => (
-            <div key={index} className={`message ${message.isUser ? 'user-message' : 'ai-message'}`}>
+            <div key={`message-${index}-${message.text.slice(0, 10)}-${message.isUser}`} className={`message ${message.isUser ? 'user-message' : 'ai-message'}`}>
               <div className="message-content">
                 {message.isUser ? (
                   <p>{message.text}</p>
