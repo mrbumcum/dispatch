@@ -123,37 +123,14 @@ function toggleTheme() {
     }
 }
 
-// Utility: slugify deck names into ids
-function slugify(text) {
-    return text.toString().toLowerCase().trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
-
-// Render deck selector buttons based on `decks` object
-function renderDeckButtons() {
-    const container = document.querySelector('.deck-selector');
-    if (!container) return;
-    const html = Object.keys(decks).map(id => {
-        const name = decks[id].name || id;
-        return `<button class="deck-btn" data-deck="${id}">${name}</button>`;
-    }).join('');
-    container.innerHTML = html;
-    // attach listeners
-    document.querySelectorAll('.deck-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchDeck(btn.dataset.deck));
-    });
-}
-
 // Deck Management
 function switchDeck(deckId) {
     currentDeck = deckId;
     currentCardIndex = 0;
     isFlipped = false;
     
-    // Update active button
-    deckButtons = document.querySelectorAll('.deck-btn');
-    deckButtons.forEach(btn => {
+    // Update rendered deck buttons active state
+    document.querySelectorAll('.deck-btn').forEach(btn => {
         if (btn.dataset.deck === deckId) {
             btn.classList.add('active');
         } else {
@@ -362,86 +339,14 @@ function init() {
     
     // Load saved deck preference or default to drugs
     const savedDeck = localStorage.getItem('currentDeck') || 'drugs';
-    // Load any custom decks saved previously
-    const savedCustom = JSON.parse(localStorage.getItem('customDecks') || '{}');
-    Object.keys(savedCustom).forEach(id => {
-        if (!decks[id]) decks[id] = { name: savedCustom[id], cards: [] };
-    });
-
-    renderDeckButtons();
     switchDeck(savedDeck);
 
     // Deck selector event listeners
-    deckButtons = document.querySelectorAll('.deck-btn');
     deckButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             switchDeck(btn.dataset.deck);
         });
     });
-
-    // Add Deck Modal handlers
-    const modal = document.getElementById('addDeckModal');
-    const floatingBtn = document.getElementById('addDeckFloatingBtn');
-    const closeBtn = document.querySelector('.modal-close');
-    const confirmBtn = document.getElementById('confirmAddDeckBtn');
-    const newDeckInput = document.getElementById('newDeckName');
-
-    if (floatingBtn) {
-        floatingBtn.addEventListener('click', () => {
-            modal.style.display = 'flex';
-            newDeckInput.focus();
-        });
-    }
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-            newDeckInput.value = '';
-        });
-    }
-
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            const name = newDeckInput.value.trim();
-            if (!name) {
-                alert('Please enter a deck name');
-                return;
-            }
-            const id = slugify(name);
-            if (decks[id]) {
-                alert('A deck with that name already exists');
-                return;
-            }
-            decks[id] = { name, cards: [] };
-            // persist custom deck names
-            const saved = JSON.parse(localStorage.getItem('customDecks') || '{}');
-            saved[id] = name;
-            localStorage.setItem('customDecks', JSON.stringify(saved));
-            renderDeckButtons();
-            switchDeck(id);
-            newDeckInput.value = '';
-            modal.style.display = 'none';
-        });
-    }
-
-    // Allow Enter key to create deck
-    if (newDeckInput) {
-        newDeckInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                confirmBtn.click();
-            }
-        });
-    }
-
-    // Close modal when clicking outside
-    if (modal) {
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-                newDeckInput.value = '';
-            }
-        });
-    }
 }
 
 
