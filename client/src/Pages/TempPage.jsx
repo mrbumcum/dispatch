@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import './TempPage.css';
+import '../styles/TempPage.css';
 
 // API Configuration - can be moved to environment variables or config file
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'YOUR_GEMINI_API_KEY_HERE';
