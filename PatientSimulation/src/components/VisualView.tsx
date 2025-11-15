@@ -9,6 +9,7 @@ interface VisualViewProps {
   characterName: string;
   characterRole: string;
   isIncomingCall?: boolean;
+  isTakingVitalSigns?: boolean;
 }
 
 export const VisualView = ({
@@ -18,6 +19,7 @@ export const VisualView = ({
   characterName,
   characterRole,
   isIncomingCall = false,
+  isTakingVitalSigns = false,
 }: VisualViewProps) => {
   return (
     <div className="relative flex flex-col items-center justify-center h-[calc(100vh-5rem)] p-4 overflow-hidden">
@@ -42,6 +44,11 @@ export const VisualView = ({
               <span className="inline-flex items-center gap-2 text-accent animate-pulse">
                 <span className="w-2 h-2 bg-accent rounded-full animate-ping"></span>
                 📞 Incoming Call...
+              </span>
+            ) : isTakingVitalSigns ? (
+              <span className="inline-flex items-center gap-2 text-primary animate-pulse">
+                <span className="w-2 h-2 bg-primary rounded-full animate-ping"></span>
+                📊 Taking vital signs...
               </span>
             ) : isSpeaking ? (
               <span className="inline-flex items-center gap-2">

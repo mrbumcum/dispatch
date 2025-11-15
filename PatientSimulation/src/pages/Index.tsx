@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ViewToggle } from "@/components/ViewToggle";
 import { VisualView } from "@/components/VisualView";
 import { TranscriptView } from "@/components/TranscriptView";
+import { VitalSigns } from "@/components/VitalSigns";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SkipForward } from "lucide-react";
@@ -92,6 +93,15 @@ const Index = () => {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
   const [isIncomingCall, setIsIncomingCall] = useState(false);
+  const [isTakingVitalSigns, setIsTakingVitalSigns] = useState(false);
+  const [vitalSigns, setVitalSigns] = useState<{
+    bloodPressure?: string | null;
+    heartRate?: string | null;
+    oxygenSaturation?: string | null;
+    temperature?: string | null;
+    respiratoryRate?: string | null;
+    glucose?: string | null;
+  }>({});
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dispatchSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -433,6 +443,215 @@ Provide feedback after key assessment steps.`;
     return text.replace(/\([^)]+\)/g, '').trim();
   };
 
+  // Generate vital signs based on scenario (not from patient response)
+  const generateVitalSigns = async (): Promise<void> => {
+    if (!currentScenario) return;
+    
+    try {
+      setIsTakingVitalSigns(true);
+      
+      const generationPrompt = `You are a medical professional determining realistic vital signs for a patient based on their condition.
+
+Scenario details: ${currentScenario.details}
+Patient complaint: ${currentScenario.description}
+
+Generate realistic vital signs based on this patient's condition. Consider:
+- If the patient is in respiratory distress, oxygen saturation should be low (85-92%)
+- If the patient has chest pain or is anxious, heart rate should be elevated (100-120 bpm)
+- If the patient has a fever or infection, temperature should be elevated (100-102°F)
+- If the patient is diabetic with symptoms, glucose should be high (200-400 mg/dL)
+- If the patient is in shock, blood pressure might be low or high depending on the cause
+- Respiratory rate should match the condition (elevated if in distress, normal if stable)
+
+Return ONLY a valid JSON object with the following structure:
+{
+  "bloodPressure": "120/80" or null,
+  "heartRate": "85" or null,
+  "oxygenSaturation": "98" or null,
+  "temperature": "98.6" or null,
+  "respiratoryRate": "18" or null,
+  "glucose": "95" or null
+}
+
+Format rules:
+- For blood pressure, use format "systolic/diastolic" (e.g., "120/80", "140/90", "90/60")
+- For heart rate, use just the number as a string (e.g., "85", "110", "130")
+- For oxygen saturation, use just the number as a string (e.g., "98", "88", "92")
+- For temperature, use Fahrenheit as a string (e.g., "98.6", "101.2", "99.8")
+- For respiratory rate, use just the number as a string (e.g., "18", "24", "28")
+- For glucose, use just the number as a string (e.g., "95", "320", "180")
+- Make values realistic and consistent with the patient's condition
+- Return ONLY valid JSON, no markdown, no code blocks, no explanations`;
+
+      // Simulate taking vital signs (2-3 second delay)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const generationResponse = await callGeminiAPI(generationPrompt, '', []);
+      
+      console.log('Vital signs generation response:', generationResponse);
+      
+      // Try to parse JSON from the response
+      let jsonString = generationResponse.trim();
+      jsonString = jsonString.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const generatedVitals = JSON.parse(jsonMatch[0]);
+          console.log('Generated vital signs:', generatedVitals);
+          
+          setVitalSigns(prev => {
+            const updated = { ...prev };
+            if (generatedVitals.bloodPressure && generatedVitals.bloodPressure !== 'null') {
+              updated.bloodPressure = String(generatedVitals.bloodPressure);
+            }
+            if (generatedVitals.heartRate && generatedVitals.heartRate !== 'null') {
+              updated.heartRate = String(generatedVitals.heartRate);
+            }
+            if (generatedVitals.oxygenSaturation && generatedVitals.oxygenSaturation !== 'null') {
+              updated.oxygenSaturation = String(generatedVitals.oxygenSaturation);
+            }
+            if (generatedVitals.temperature && generatedVitals.temperature !== 'null') {
+              updated.temperature = String(generatedVitals.temperature);
+            }
+            if (generatedVitals.respiratoryRate && generatedVitals.respiratoryRate !== 'null') {
+              updated.respiratoryRate = String(generatedVitals.respiratoryRate);
+            }
+            if (generatedVitals.glucose && generatedVitals.glucose !== 'null') {
+              updated.glucose = String(generatedVitals.glucose);
+            }
+            console.log('Updated vital signs state:', updated);
+            return updated;
+          });
+        } catch (parseError) {
+          console.error('Error parsing vital signs JSON:', parseError, 'Response:', jsonMatch[0]);
+        }
+      }
+      
+      setIsTakingVitalSigns(false);
+    } catch (error) {
+      console.error('Error generating vital signs:', error);
+      setIsTakingVitalSigns(false);
+    }
+  };
+
+  // Extract vital signs from patient response using Gemini (DEPRECATED - kept for backwards compatibility)
+  const extractVitalSigns = async (patientResponse: string, userQuestion: string): Promise<void> => {
+    try {
+      // Check if the user asked about vital signs
+      const vitalSignsKeywords = [
+        'vital', 'blood pressure', 'heart rate', 'pulse', 'oxygen', 'saturation', 'spo2', 'o2',
+        'temperature', 'temp', 'respiratory', 'breathing rate', 'glucose', 'blood sugar', 'bgl',
+        'bp', 'hr', 'rr', 'rrr', 'vitals', 'pressure', 'bpm', 'breaths', 'measure', 'check',
+        'take your', 'get your', 'can i', 'may i', 'check your', 'measure your'
+      ];
+      
+      const questionLower = userQuestion.toLowerCase();
+      const responseLower = patientResponse.toLowerCase();
+      
+      // Check if USER asked about vital signs (this is the key trigger)
+      const isVitalSignsQuestion = vitalSignsKeywords.some(keyword => 
+        questionLower.includes(keyword)
+      );
+
+      // Also check if response contains vital sign patterns
+      const hasVitalPattern = /\d+\/\d+|\d+\s*(bpm|%|°f|°c|mg\/dl|mmHg)/i.test(patientResponse);
+      
+      // Always try to extract if user asked about vitals OR if response contains vital patterns
+      if (!isVitalSignsQuestion && !hasVitalPattern) {
+        console.log('Skipping vital signs extraction - no keywords or patterns found');
+        return; // Skip extraction if not relevant
+      }
+
+      console.log('Extracting vital signs - Question:', userQuestion, 'Response:', patientResponse);
+
+      const extractionPrompt = `You are a medical assistant extracting vital signs from a patient's response.
+
+User's question: "${userQuestion}"
+Patient's response: "${patientResponse}"
+${currentScenario ? `Scenario context: ${currentScenario.details}` : ''}
+
+The user asked about vital signs. Extract any vital signs mentioned in the patient's response. 
+
+IMPORTANT: If the patient only said "yes", "sure", "okay", or similar agreement without providing actual values, you should infer realistic vital signs based on the scenario context and the patient's condition. For example:
+- If the patient is in respiratory distress, oxygen saturation might be low (85-92%)
+- If the patient has chest pain, heart rate might be elevated (100-120 bpm)
+- If the patient is diabetic with symptoms, glucose might be high (200-400 mg/dL)
+- If the patient is stable, use normal ranges
+
+Return ONLY a valid JSON object with the following structure:
+{
+  "bloodPressure": "120/80" or null,
+  "heartRate": "85" or null,
+  "oxygenSaturation": "98" or null,
+  "temperature": "98.6" or null,
+  "respiratoryRate": "18" or null,
+  "glucose": "95" or null
+}
+
+Format rules:
+- For blood pressure, use format "systolic/diastolic" (e.g., "120/80", "140/90")
+- For heart rate, use just the number as a string (e.g., "85", "110")
+- For oxygen saturation, use just the number as a string (e.g., "98", "88")
+- For temperature, use Fahrenheit as a string (e.g., "98.6", "101.2")
+- For respiratory rate, use just the number as a string (e.g., "18", "24")
+- For glucose, use just the number as a string (e.g., "95", "320")
+- If you cannot determine a value even with inference, use null
+- Return ONLY valid JSON, no markdown, no code blocks, no explanations`;
+
+      const extractionResponse = await callGeminiAPI(extractionPrompt, '', []);
+      
+      console.log('Vital signs extraction response:', extractionResponse);
+      
+      // Try to parse JSON from the response - handle markdown code blocks
+      let jsonString = extractionResponse.trim();
+      
+      // Remove markdown code blocks if present
+      jsonString = jsonString.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Try to find JSON object
+      const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const extractedVitals = JSON.parse(jsonMatch[0]);
+          console.log('Parsed vital signs:', extractedVitals);
+          
+          setVitalSigns(prev => {
+            const updated = { ...prev };
+            // Only update non-null and non-empty values
+            if (extractedVitals.bloodPressure && extractedVitals.bloodPressure !== 'null') {
+              updated.bloodPressure = String(extractedVitals.bloodPressure);
+            }
+            if (extractedVitals.heartRate && extractedVitals.heartRate !== 'null') {
+              updated.heartRate = String(extractedVitals.heartRate);
+            }
+            if (extractedVitals.oxygenSaturation && extractedVitals.oxygenSaturation !== 'null') {
+              updated.oxygenSaturation = String(extractedVitals.oxygenSaturation);
+            }
+            if (extractedVitals.temperature && extractedVitals.temperature !== 'null') {
+              updated.temperature = String(extractedVitals.temperature);
+            }
+            if (extractedVitals.respiratoryRate && extractedVitals.respiratoryRate !== 'null') {
+              updated.respiratoryRate = String(extractedVitals.respiratoryRate);
+            }
+            if (extractedVitals.glucose && extractedVitals.glucose !== 'null') {
+              updated.glucose = String(extractedVitals.glucose);
+            }
+            console.log('Updated vital signs state:', updated);
+            return updated;
+          });
+        } catch (parseError) {
+          console.error('Error parsing vital signs JSON:', parseError, 'Response:', jsonMatch[0]);
+        }
+      } else {
+        console.warn('No JSON found in extraction response:', extractionResponse);
+      }
+    } catch (error) {
+      console.error('Error extracting vital signs:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
   // Adjust voice settings based on stage directions
   const getVoiceSettingsFromStageDirections = (stageDirections: string[], baseSettings: any) => {
     if (!stageDirections || stageDirections.length === 0) {
@@ -700,6 +919,8 @@ Provide feedback after key assessment steps.`;
     setMessages([]);
     setCurrentScenario(null);
     setIsSpeaking(false);
+    setVitalSigns({}); // Reset vital signs for new scenario
+    setIsTakingVitalSigns(false); // Reset taking vital signs state
     setPlayingAudio(null);
     setCurrentSpeaker(null);
     setIsIncomingCall(false);
@@ -818,12 +1039,40 @@ Provide feedback after key assessment steps.`;
           parts: [{ text: m.text }]
         }));
 
+      // Check if user is asking about vital signs
+      const vitalSignsKeywords = [
+        'vital', 'blood pressure', 'heart rate', 'pulse', 'oxygen', 'saturation', 'spo2', 'o2',
+        'temperature', 'temp', 'respiratory', 'breathing rate', 'glucose', 'blood sugar', 'bgl',
+        'bp', 'hr', 'rr', 'rrr', 'vitals', 'pressure', 'bpm', 'breaths', 'measure', 'check',
+        'take your', 'get your', 'can i', 'may i', 'check your', 'measure your'
+      ];
+      const isAskingAboutVitals = vitalSignsKeywords.some(keyword => text.toLowerCase().includes(keyword));
+      
       const patientPrompt = `The EMT student just asked you: "${text}"
       Respond as the patient. Provide realistic, detailed information based on your symptoms and condition. 
-      Remember you're in distress - be natural and consistent with your symptoms.`;
+      Remember you're in distress - be natural and consistent with your symptoms.
+      
+      ${isAskingAboutVitals ? `IMPORTANT: The EMT is asking if they can take your vital signs. 
+      - If you agree, simply say "yes", "sure", "okay", "go ahead", or similar permission
+      - DO NOT provide actual vital sign values - you don't know your exact numbers
+      - Just give permission for them to measure you
+      - You can mention how you're feeling (e.g., "yes, I feel really dizzy" or "sure, my heart feels like it's racing") but don't give specific numbers` : ''}`;
 
       const patientResponse = await callGeminiAPI(patientPrompt, PATIENT_PROMPT, conversationHistory);
       const patientStageDirections = extractStageDirections(patientResponse);
+      
+      // Check if patient gave permission for vital signs
+      if (isAskingAboutVitals) {
+        const permissionKeywords = ['yes', 'sure', 'okay', 'ok', 'go ahead', 'fine', 'alright', 'yeah', 'yep'];
+        const gavePermission = permissionKeywords.some(keyword => 
+          patientResponse.toLowerCase().includes(keyword)
+        );
+        
+        if (gavePermission) {
+          // Generate vital signs automatically after permission
+          generateVitalSigns();
+        }
+      }
       
       const patientMessageId = `patient-${Date.now()}`;
       setMessages(prev => [
@@ -1037,32 +1286,41 @@ Provide feedback after key assessment steps.`;
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden">
-        {view === "visual" ? (
-          <VisualView
-            isSpeaking={isSpeaking}
-            isListening={isListening}
-            onMicToggle={handleMicToggle}
-            characterName={isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
-            characterRole={currentScenario?.type || "Emergency Scene"}
-            isIncomingCall={isIncomingCall}
-          />
-        ) : (
-          <TranscriptView
-            messages={messages}
-            isListening={isListening}
-            onMicToggle={handleMicToggle}
-            onSendMessage={sendMessage}
-            userInput={userInput}
-            setUserInput={setUserInput}
-            isLoading={isLoading}
-            scenarioStarted={scenarioStarted}
-            onPlayAudio={playAudio}
-            playingAudio={playingAudio}
-            stopAudio={stopAudio}
-            currentScenario={currentScenario}
-          />
-        )}
+      <main className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        {/* Vital Signs Panel - Left Side (Desktop) / Top (Mobile) */}
+        <div className="lg:w-80 lg:flex-shrink-0 lg:border-r border-b lg:border-b-0 border-border/50 p-4 overflow-y-auto max-h-[30vh] lg:max-h-none">
+          <VitalSigns vitals={vitalSigns} />
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-hidden min-w-0">
+          {view === "visual" ? (
+            <VisualView
+              isSpeaking={isSpeaking}
+              isListening={isListening}
+              onMicToggle={handleMicToggle}
+              characterName={isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
+              characterRole={currentScenario?.type || "Emergency Scene"}
+              isIncomingCall={isIncomingCall}
+              isTakingVitalSigns={isTakingVitalSigns}
+            />
+          ) : (
+            <TranscriptView
+              messages={messages}
+              isListening={isListening}
+              onMicToggle={handleMicToggle}
+              onSendMessage={sendMessage}
+              userInput={userInput}
+              setUserInput={setUserInput}
+              isLoading={isLoading}
+              scenarioStarted={scenarioStarted}
+              onPlayAudio={playAudio}
+              playingAudio={playingAudio}
+              stopAudio={stopAudio}
+              currentScenario={currentScenario}
+            />
+          )}
+        </div>
       </main>
 
       <div className="fixed bottom-4 right-4 z-50">
