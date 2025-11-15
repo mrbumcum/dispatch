@@ -285,6 +285,18 @@ Provide feedback after key assessment steps.`;
               dispatcherMessage.stageDirections || []
             );
             
+            // If audio generation failed (e.g., quota exceeded), skip audio playback
+            if (!audioUrl) {
+              setIsIncomingCall(false);
+              setCurrentSpeaker('dispatcher');
+              // Continue to patient audio or just show text
+              const patientMsg = messages.find(m => m.speaker === 'patient' && m.id.startsWith('patient-'));
+              if (patientMsg) {
+                setCurrentSpeaker('patient');
+              }
+              return;
+            }
+            
             const audio = new Audio(audioUrl);
             audioRef.current = audio;
             setPlayingAudio(dispatcherMessage.id);
@@ -323,6 +335,14 @@ Provide feedback after key assessment steps.`;
                   );
                   
                   console.log('Patient audio URL generated:', patientAudioUrl ? 'Success' : 'Failed');
+                  
+                  // If audio generation failed (e.g., quota exceeded), skip audio playback
+                  if (!patientAudioUrl) {
+                    setIsSpeaking(false);
+                    setPlayingAudio(null);
+                    setCurrentSpeaker(null);
+                    return;
+                  }
                   
                   const patientAudio = new Audio(patientAudioUrl);
                   audioRef.current = patientAudio;
@@ -783,6 +803,18 @@ Format rules:
       return audioUrl;
     } catch (error) {
       console.error('Error converting text to speech:', error);
+      // Check if it's a quota/credits error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('quota') || errorMessage.includes('credits') || errorMessage.includes('401')) {
+        toast({
+          title: "Audio Unavailable",
+          description: "Text-to-speech quota exceeded. The simulation will continue without audio. Please check your ElevenLabs API account.",
+          variant: "destructive",
+          duration: 5000
+        });
+        // Return null instead of throwing - allows app to continue without audio
+        return null;
+      }
       throw error;
     }
   };
@@ -813,6 +845,14 @@ Format rules:
       const voiceType = speaker === 'dispatcher' ? 'dispatcher' : 'patient';
       
       const audioUrl = await textToSpeech(text, voiceId, voiceType, stageDirections);
+      
+      // If audio generation failed (e.g., quota exceeded), skip audio playback
+      if (!audioUrl) {
+        setIsSpeaking(false);
+        setPlayingAudio(null);
+        setCurrentSpeaker(null);
+        return;
+      }
       
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
@@ -1105,6 +1145,14 @@ Format rules:
             'patient',
             patientStageDirections || []
           );
+          
+          // If audio generation failed (e.g., quota exceeded), skip audio playback
+          if (!patientAudioUrl) {
+            setIsSpeaking(false);
+            setPlayingAudio(null);
+            setCurrentSpeaker(null);
+            return;
+          }
           
           const patientAudio = new Audio(patientAudioUrl);
           audioRef.current = patientAudio;
