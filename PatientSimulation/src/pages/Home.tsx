@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, Radio, BookOpen, ClipboardCheck, Map } from "lucide-react";
+import { Activity, Radio, BookOpen, Map } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Home = () => {
@@ -17,12 +17,12 @@ const Home = () => {
       gradient: "from-red-500 to-orange-500"
     },
     {
-      id: "map-practice",
-      title: "Map Practice",
+      id: "response-area-quiz",
+      title: "Response Area Quiz",
       description: "Learn building locations and addresses through interactive map training",
       icon: <Map className="w-12 h-12" />,
-      path: "/map-practice",
-      gradient: "from-amber-500 to-yellow-500"
+      path: "/response-area-quiz",
+      gradient: "from-green-500 to-emerald-500"
     },
     {
       id: "radio-simulation",
@@ -39,14 +39,6 @@ const Home = () => {
       icon: <BookOpen className="w-12 h-12" />,
       path: "/flashcards",
       gradient: "from-purple-500 to-pink-500"
-    },
-    {
-      id: "response-area-quiz",
-      title: "Response Area Quiz",
-      description: "Test your knowledge of response areas, locations, and navigation",
-      icon: <ClipboardCheck className="w-12 h-12" />,
-      path: "/response-area-quiz",
-      gradient: "from-green-500 to-emerald-500"
     }
   ];
 
