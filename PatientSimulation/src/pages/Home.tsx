@@ -54,7 +54,7 @@ const Home = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  EMT Training Platform
+                  FieldReady
                 </h1>
                 <p className="text-sm text-muted-foreground">Choose a training module to begin</p>
               </div>
@@ -69,8 +69,8 @@ const Home = () => {
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section */}
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Welcome to EMT Training
+            <h2 className="text-4xl font-bold leading-tight mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Are you Field Ready?
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Enhance your emergency medical skills through interactive simulations, 
