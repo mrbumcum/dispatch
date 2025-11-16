@@ -287,10 +287,10 @@ const Flashcards = () => {
   const currentCard = flashcards[currentCardIndex];
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-500 relative overflow-hidden">
+    <div className="h-screen bg-background transition-colors duration-500 relative overflow-hidden flex flex-col">
       
       {/* Header */}
-      <header className="glass border-b border-border/50 z-50">
+      <header className="glass border-b border-border/50 z-50 flex-shrink-0">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -318,148 +318,146 @@ const Flashcards = () => {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Deck Selector */}
-          <div className="flex justify-center gap-2 mb-6 flex-wrap">
-            {Object.keys(decks).map((deckId) => (
-              <Button
-                key={deckId}
-                onClick={() => switchDeck(deckId)}
-                variant={currentDeck === deckId ? "default" : "outline"}
-                size="sm"
-                className={`transition-all duration-300 ${
-                  currentDeck === deckId
-                    ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/50"
-                    : "bg-white/10 border-white/20 text-white/70 hover:bg-white/20 hover:text-white"
-                }`}
-              >
-                {decks[deckId].name}
-              </Button>
-            ))}
-          </div>
-
-          {/* Card Counter */}
-          <div className="text-center text-white/70 text-sm mb-4 font-light">
-            {flashcards.length > 0 ? (
-              <>
-                {currentCardIndex + 1} / {flashcards.length}
-              </>
-            ) : (
-              "No cards yet"
-            )}
-          </div>
-
-          {/* Flashcard */}
-          <div className="perspective-1000 mb-8">
-            <div
-              className={`relative w-full h-80 transition-transform duration-500 transform-style-3d cursor-pointer ${
-                isFlipped ? "rotate-y-180" : ""
+      <main className="relative z-10 container mx-auto px-4 py-4 flex-1 flex flex-col min-h-0 max-w-4xl">
+        {/* Deck Selector */}
+        <div className="flex justify-center gap-2 mb-3 flex-wrap flex-shrink-0">
+          {Object.keys(decks).map((deckId) => (
+            <Button
+              key={deckId}
+              onClick={() => switchDeck(deckId)}
+              variant={currentDeck === deckId ? "default" : "outline"}
+              size="sm"
+              className={`transition-all duration-300 ${
+                currentDeck === deckId
+                  ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/50"
+                  : "bg-white/10 border-white/20 text-white/70 hover:bg-white/20 hover:text-white"
               }`}
-              onClick={flipCard}
-              style={{ transformStyle: "preserve-3d" }}
             >
-              {/* Front */}
-              <Card
-                className="absolute inset-0 backface-hidden rounded-3xl bg-gradient-to-br from-cyan-400 via-purple-400 to-pink-400 border-0 shadow-2xl shadow-cyan-500/20 p-8 flex items-center justify-center"
-                style={{ backfaceVisibility: "hidden" }}
-              >
-                <div className="text-center text-white text-3xl font-semibold drop-shadow-lg">
-                  {currentCard ? currentCard.front : "No cards yet. Add one below!"}
-                </div>
-              </Card>
+              {decks[deckId].name}
+            </Button>
+          ))}
+        </div>
 
-              {/* Back */}
-              <Card
-                className="absolute inset-0 backface-hidden rounded-3xl bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 border-0 shadow-2xl shadow-pink-500/20 p-8 overflow-y-auto rotate-y-180"
-                style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
-              >
-                <div className="text-white text-left">
-                  {currentCard ? (
-                    formatDrugInfo(currentCard.back).length > 0 ? (
-                      formatDrugInfo(currentCard.back)
-                    ) : (
-                      <div className="text-sm leading-relaxed">{currentCard.back}</div>
-                    )
+        {/* Card Counter */}
+        <div className="text-center text-white/70 text-sm mb-3 font-light flex-shrink-0">
+          {flashcards.length > 0 ? (
+            <>
+              {currentCardIndex + 1} / {flashcards.length}
+            </>
+          ) : (
+            "No cards yet"
+          )}
+        </div>
+
+        {/* Flashcard */}
+        <div className="perspective-1000 mb-3 flex-1 min-h-0 flex items-center justify-center">
+          <div
+            className={`relative w-full h-full max-h-64 min-h-48 transition-transform duration-500 transform-style-3d cursor-pointer ${
+              isFlipped ? "rotate-y-180" : ""
+            }`}
+            onClick={flipCard}
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            {/* Front */}
+            <Card
+              className="absolute inset-0 backface-hidden rounded-3xl bg-gradient-to-br from-cyan-400 via-purple-400 to-pink-400 border-0 shadow-2xl shadow-cyan-500/20 p-6 flex items-center justify-center"
+              style={{ backfaceVisibility: "hidden" }}
+            >
+              <div className="text-center text-white text-2xl md:text-3xl font-semibold drop-shadow-lg">
+                {currentCard ? currentCard.front : "No cards yet. Add one below!"}
+              </div>
+            </Card>
+
+            {/* Back */}
+            <Card
+              className="absolute inset-0 backface-hidden rounded-3xl bg-gradient-to-br from-pink-400 via-purple-400 to-cyan-400 border-0 shadow-2xl shadow-pink-500/20 p-6 overflow-y-auto rotate-y-180"
+              style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+            >
+              <div className="text-white text-left">
+                {currentCard ? (
+                  formatDrugInfo(currentCard.back).length > 0 ? (
+                    formatDrugInfo(currentCard.back)
                   ) : (
-                    "No cards yet. Add one below!"
-                  )}
-                </div>
-              </Card>
-            </div>
+                    <div className="text-sm leading-relaxed">{currentCard.back}</div>
+                  )
+                ) : (
+                  "No cards yet. Add one below!"
+                )}
+              </div>
+            </Card>
           </div>
+        </div>
 
-          {/* Controls */}
-          <div className="flex justify-center items-center gap-4 mb-8">
-            <Button
-              onClick={prevCard}
-              disabled={currentCardIndex === 0 || flashcards.length === 0}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
-              size="lg"
-            >
-              <ChevronLeft className="w-5 h-5 mr-2" />
-              Previous
-            </Button>
+        {/* Controls */}
+        <div className="flex justify-center items-center gap-4 mb-3 flex-shrink-0">
+          <Button
+            onClick={prevCard}
+            disabled={currentCardIndex === 0 || flashcards.length === 0}
+            className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
+            size="lg"
+          >
+            <ChevronLeft className="w-5 h-5 mr-2" />
+            Previous
+          </Button>
 
-            <Button
-              onClick={flipCard}
-              disabled={flashcards.length === 0}
-              className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/30 shadow-lg transition-all duration-300 hover:scale-105"
-              size="lg"
-            >
-              <RotateCw className="w-5 h-5 mr-2" />
-              Flip
-            </Button>
+          <Button
+            onClick={flipCard}
+            disabled={flashcards.length === 0}
+            className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border border-white/30 shadow-lg transition-all duration-300 hover:scale-105"
+            size="lg"
+          >
+            <RotateCw className="w-5 h-5 mr-2" />
+            Flip
+          </Button>
 
-            <Button
-              onClick={nextCard}
-              disabled={currentCardIndex === flashcards.length - 1 || flashcards.length === 0}
-              className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
-              size="lg"
-            >
-              Next
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
+          <Button
+            onClick={nextCard}
+            disabled={currentCardIndex === flashcards.length - 1 || flashcards.length === 0}
+            className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
+            size="lg"
+          >
+            Next
+            <ChevronRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
 
-          {/* Add Card Section */}
-          <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-6 shadow-xl">
-            <h3 className="text-white text-lg font-medium mb-4">Add New Card</h3>
-            <div className="space-y-3">
-              <Input
-                placeholder={currentDeck === "vitals" ? "Condition" : "Drug name"}
-                value={frontInput}
-                onChange={(e) => setFrontInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    document.getElementById("back-input")?.focus();
-                  }
-                }}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
-              />
-              <Input
-                id="back-input"
-                placeholder={
-                  currentDeck === "vitals"
-                    ? "Vital signs"
-                    : "Indications, dosage, contraindications, side effects"
+        {/* Add Card Section */}
+        <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-4 shadow-xl flex-shrink-0">
+          <h3 className="text-white text-lg font-medium mb-3">Add New Card</h3>
+          <div className="space-y-2">
+            <Input
+              placeholder={currentDeck === "vitals" ? "Condition" : "Drug name"}
+              value={frontInput}
+              onChange={(e) => setFrontInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  document.getElementById("back-input")?.focus();
                 }
-                value={backInput}
-                onChange={(e) => setBackInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    addCard();
-                  }
-                }}
-                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
-              />
-              <Button
-                onClick={addCard}
-                className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white shadow-lg transition-all duration-300 hover:scale-105"
-              >
-                Add Card
-              </Button>
-            </div>
+              }}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
+            />
+            <Input
+              id="back-input"
+              placeholder={
+                currentDeck === "vitals"
+                  ? "Vital signs"
+                  : "Indications, dosage, contraindications, side effects"
+              }
+              value={backInput}
+              onChange={(e) => setBackInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  addCard();
+                }
+              }}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
+            />
+            <Button
+              onClick={addCard}
+              className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white shadow-lg transition-all duration-300 hover:scale-105"
+            >
+              Add Card
+            </Button>
           </div>
         </div>
       </main>
