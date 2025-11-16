@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import Home from "./pages/Home";
 import PatientSimulation from "./pages/PatientSimulation";
 import ResponseAreaQuiz from "./pages/ResponseAreaQuiz";
+import Flashcards from "./pages/Flashcards";
+import RadioSimulation from "./pages/RadioSimulation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +25,8 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/patient-simulation" element={<PatientSimulation />} />
             <Route path="/response-area-quiz" element={<ResponseAreaQuiz />} />
+            <Route path="/flashcards" element={<Flashcards />} />
+            <Route path="/radio-simulation" element={<RadioSimulation />} />
             <Route path="/index" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
