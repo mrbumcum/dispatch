@@ -9,6 +9,7 @@ import PatientSimulation from "./pages/PatientSimulation";
 import RadioSimulation from "./pages/RadioSimulation";
 import Flashcards from "./pages/Flashcards";
 import ResponseAreaQuiz from "./pages/ResponseAreaQuiz";
+import SessionSummary from "./pages/SessionSummary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/radio-simulation" element={<RadioSimulation />} />
             <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/response-area-quiz" element={<ResponseAreaQuiz />} />
+            <Route path="/session-summary" element={<SessionSummary />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
