@@ -7,7 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import PatientSimulation from "./pages/PatientSimulation";
-import MapPractice from "./pages/MapPractice";
+import ResponseAreaQuiz from "./pages/ResponseAreaQuiz";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,7 +22,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/patient-simulation" element={<PatientSimulation />} />
-            <Route path="/map-practice" element={<MapPractice />} />
+            <Route path="/response-area-quiz" element={<ResponseAreaQuiz />} />
             <Route path="/index" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
