@@ -10,6 +10,7 @@ interface VisualViewProps {
   characterRole: string;
   isIncomingCall?: boolean;
   isTakingVitalSigns?: boolean;
+  elapsedTime?: number;
 }
 
 export const VisualView = ({
@@ -20,7 +21,14 @@ export const VisualView = ({
   characterRole,
   isIncomingCall = false,
   isTakingVitalSigns = false,
+  elapsedTime = 0,
 }: VisualViewProps) => {
+  // Format timer as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   return (
     <div className="relative flex flex-col items-center justify-center h-[calc(100vh-5rem)] p-4 overflow-hidden">
       {/* Background gradient orbs */}
@@ -30,6 +38,15 @@ export const VisualView = ({
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl w-full h-full justify-center">
+        {/* Timer - Display above header */}
+        {elapsedTime > 0 && (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/50 bg-primary/10">
+            <span className="text-lg font-bold text-primary tabular-nums">
+              ⏱ {formatTime(elapsedTime)}
+            </span>
+          </div>
+        )}
+        
         {/* Header Info */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-border/50">
@@ -48,7 +65,7 @@ export const VisualView = ({
             ) : isTakingVitalSigns ? (
               <span className="inline-flex items-center gap-2 text-primary animate-pulse">
                 <span className="w-2 h-2 bg-primary rounded-full animate-ping"></span>
-                📊 Taking vital signs...
+                🩺 Taking vital signs... ✍🏻
               </span>
             ) : isSpeaking ? (
               <span className="inline-flex items-center gap-2">
@@ -72,7 +89,12 @@ export const VisualView = ({
           <div className="relative w-64 h-64 rounded-full glass border-2 border-primary/30 overflow-hidden shadow-2xl">
             <div className="absolute inset-0 gradient-hero opacity-90" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-8xl">👤</div>
+              <div 
+                className="text-8xl"
+                style={characterName.includes('Help is on the way') ? { transform: 'scaleX(-1)' } : {}}
+              >
+                {characterName.includes('Help is on the way') ? '🚑' : '👤'}
+              </div>
             </div>
             
             {/* Pulse rings when speaking */}

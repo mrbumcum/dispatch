@@ -1,9 +1,10 @@
-# EMT Patient Simulation Training Platform
+# EMT Training Platform
 
-An interactive EMT training simulation where students practice patient assessment skills through realistic scenarios powered by AI. The platform features voice interaction, realistic patient responses, and dispatcher feedback.
+A comprehensive EMT training platform featuring multiple simulation tools to help students practice and improve their emergency medical skills. The platform includes patient simulation, radio simulation, flashcards, and response area quizzes - all powered by AI.
 
 ## Features
 
+### Patient Simulation
 - 🎯 **Realistic Patient Scenarios**: AI-generated emergency scenarios with diverse patient presentations
 - 🎤 **Voice Interaction**: Speak directly to patients using microphone input (Web Speech API)
 - 🔊 **Text-to-Speech**: Patient and dispatcher responses with natural, emotional voices (ElevenLabs)
@@ -11,6 +12,10 @@ An interactive EMT training simulation where students practice patient assessmen
 - 🎨 **Modern UI/UX**: Beautiful visual and transcript views with real-time audio indicators
 - 🎭 **Dynamic Voice Selection**: Patient voices adapt based on age and gender
 - 📝 **Stage Directions**: Visual display of patient emotional cues and physical responses
+- 💊 **Vital Signs Tracking**: Real-time vital signs panel that updates during assessment
+- 🏥 **Intervention System**: Practice administering medications and treatments
+- 📊 **Session Summary**: Review your performance with AI-generated grades and feedback
+- ⏱️ **Timer**: Track response time for each scenario
 
 ## Prerequisites
 
@@ -35,7 +40,7 @@ npm install
 cp src/config.example.ts src/config.ts
 
 # 4. Edit src/config.ts and add your API keys
-# (Open the file in your editor and replace the placeholder values)
+# (Open the file in your editor and replace the placeholder values with your actual API keys)
 
 # 5. Start the development server
 npm run dev
@@ -95,6 +100,8 @@ You'll need API keys from two services:
 
 2. Open `src/config.ts` in your editor and replace the placeholders:
    ```typescript
+   // API Configuration
+   // This file should be gitignored in production
    export const CONFIG = {
      GEMINI_API_KEY: 'your-actual-gemini-api-key-here',
      ELEVENLABS_API_KEY: 'your-actual-elevenlabs-api-key-here'
@@ -113,13 +120,17 @@ The terminal will display the local URL (typically `http://localhost:5173`). Ope
 
 ### Step 5: Start Training!
 
-1. Click the **"New Scenario"** button to start a training session
-2. Wait for the dispatch sound and dispatcher announcement
-3. Listen to the patient's initial response
-4. Click the **microphone button** to speak your assessment questions
-5. Click the microphone again when finished speaking
-6. The patient will respond both in text and audio
-7. The dispatcher will provide feedback on your assessment
+1. From the home page, select **"Patient Simulation"**
+2. Click the **"New Scenario"** button to start a training session
+3. Wait for the dispatch sound effect (5 seconds), then listen to the dispatcher announcement
+4. Listen to the patient's initial response
+5. Click the **microphone button** to speak your assessment questions
+6. Click the microphone again when finished speaking
+7. The patient will respond both in text and audio
+8. The dispatcher will provide feedback on your assessment
+9. Ask to take vital signs to see patient measurements
+10. Complete interventions when prompted
+11. Click **"End Session"** to view your performance summary with grades and feedback
 
 ## Available Scripts
 
@@ -142,17 +153,31 @@ npm run lint
 ```
 PatientSimulation/
 ├── public/              # Static assets (audio files, favicon)
+│   ├── dispatch-sound.mp3
+│   ├── ambulance-siren.mp3
+│   ├── car-brake.mp3
+│   └── ...
 ├── src/
 │   ├── components/      # React components
 │   │   ├── ui/         # Shadcn UI components
 │   │   ├── VisualView.tsx
 │   │   ├── TranscriptView.tsx
+│   │   ├── VitalSigns.tsx
+│   │   ├── AudioWaveform.tsx
 │   │   └── ...
 │   ├── pages/          # Page components
-│   │   └── Index.tsx   # Main simulation page
-│   ├── config.ts       # API keys (gitignored)
+│   │   ├── Home.tsx              # Home page with feature selection
+│   │   ├── PatientSimulation.tsx # Main patient simulation page
+│   │   ├── SessionSummary.tsx    # Performance summary and grades
+│   │   ├── RadioSimulation.tsx   # Radio simulation (placeholder)
+│   │   ├── Flashcards.tsx           # Flashcards (placeholder)
+│   │   └── ResponseAreaQuiz.tsx  # Response area quiz (placeholder)
+│   ├── contexts/        # React contexts
+│   │   └── ThemeContext.tsx
+│   ├── config.ts       # API keys (gitignored - DO NOT COMMIT)
 │   ├── config.example.ts  # Config template
-│   └── ...
+│   ├── App.tsx         # Main app component with routing
+│   └── main.tsx        # Entry point
 ├── package.json
 └── README.md
 ```
@@ -160,13 +185,14 @@ PatientSimulation/
 ## Technologies Used
 
 - **Vite** - Fast build tool and dev server
-- **React 18** - UI framework
+- **React 18** - UI framework with React Router for navigation
 - **TypeScript** - Type-safe JavaScript
 - **Tailwind CSS** - Utility-first CSS framework
 - **Shadcn UI** - High-quality React components
-- **Google Gemini API** - AI for patient and dispatcher responses
+- **Google Gemini API** - AI for patient and dispatcher responses, grading, and feedback
 - **ElevenLabs API** - Text-to-speech with natural voices
 - **Web Speech API** - Browser-based speech recognition
+- **React Router** - Client-side routing for multi-page navigation
 
 ## Troubleshooting
 
@@ -179,6 +205,7 @@ If port 5173 is already in use, Vite will automatically try the next available p
 - **"API key is not configured"**: Make sure `src/config.ts` exists and contains valid API keys
 - **"401 Unauthorized"**: Your API key is invalid or expired. Get a new key from the provider
 - **"Model not available"**: The API model might have changed. Check the console for available models
+- **ElevenLabs Quota Exceeded**: If you see "quota exceeded" errors, the app will continue without audio. Check your ElevenLabs account for available credits
 
 ### Microphone Not Working
 
@@ -203,9 +230,10 @@ If port 5173 is already in use, Vite will automatically try the next available p
 
 ⚠️ **Never commit API keys to version control!**
 
-- `src/config.ts` is already in `.gitignore`
+- `src/config.ts` is already in `.gitignore` - it will NOT be committed
 - Always use `src/config.example.ts` as a template
-- For production, consider using environment variables or a backend proxy
+- Never share your API keys publicly
+- For production deployments, consider using environment variables or a backend proxy to secure API keys
 
 ## Contributing
 

@@ -105,6 +105,18 @@ const PatientSimulation = () => {
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [isTakingVitalSigns, setIsTakingVitalSigns] = useState(false);
+  const [isPlayingSoundEffects, setIsPlayingSoundEffects] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0); // Timer in seconds
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [sessionScenarios, setSessionScenarios] = useState<Array<{
+    scenario: Scenario;
+    messages: Message[];
+    startTime: Date;
+    endTime: Date;
+    elapsedTime: number;
+  }>>([]);
+  const [currentScenarioStartTime, setCurrentScenarioStartTime] = useState<Date | null>(null);
   const [vitalSigns, setVitalSigns] = useState<{
     bloodPressure?: string | null;
     heartRate?: string | null;
@@ -120,6 +132,8 @@ const PatientSimulation = () => {
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dispatchSoundRef = useRef<HTMLAudioElement | null>(null);
+  const sirenSoundRef = useRef<HTMLAudioElement | null>(null);
+  const brakeSoundRef = useRef<HTMLAudioElement | null>(null);
   const hasAutoPlayedRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBufferRef = useRef<string>('');
@@ -316,15 +330,24 @@ Provide feedback after key assessment steps.`;
             setCurrentSpeaker('dispatcher');
             setIsSpeaking(true);
             
-            // When dispatcher finishes, play patient audio
-            audio.onended = () => {
+            // When dispatcher finishes, play ambulance siren for 4 seconds, then brake sound, then patient audio
+            audio.onended = async () => {
               setIsSpeaking(false);
               setPlayingAudio(null);
               setCurrentSpeaker(null);
               URL.revokeObjectURL(audioUrl);
               
-              // Small delay before playing patient
-              setTimeout(async () => {
+              // Helper function to play patient audio
+              const playPatientAudio = async () => {
+                // Check if patient message exists and has text
+                if (!patientMsg || !patientMsg.text || patientMsg.text.trim() === '') {
+                  console.warn('No patient message found or message is empty, skipping audio playback');
+                  setIsSpeaking(false);
+                  setPlayingAudio(null);
+                  setCurrentSpeaker(null);
+                  return;
+                }
+
                 try {
                   let patientVoiceId;
                   
@@ -363,6 +386,15 @@ Provide feedback after key assessment steps.`;
                   setCurrentSpeaker('patient');
                   setIsSpeaking(true);
                   
+                  // Start timer when patient starts speaking
+                  if (!isTimerRunning) {
+                    setIsTimerRunning(true);
+                    setElapsedTime(0);
+                    timerIntervalRef.current = setInterval(() => {
+                      setElapsedTime(prev => prev + 1);
+                    }, 1000);
+                  }
+                  
                   patientAudio.onended = () => {
                     console.log('Patient audio finished');
                     setIsSpeaking(false);
@@ -398,7 +430,118 @@ Provide feedback after key assessment steps.`;
                     variant: "destructive"
                   });
                 }
-              }, 500);
+              };
+
+              // Helper function to play brake sound for 2 seconds (starting from 1 second mark), then patient audio
+              const playBrakeSound = () => {
+                try {
+                  setIsPlayingSoundEffects(true); // Keep showing ambulance emoji
+                  const brakeSound = new Audio('/car-brake.mp3');
+                  brakeSoundRef.current = brakeSound;
+                  
+                  // Handle brake sound errors gracefully
+                  brakeSound.onerror = () => {
+                    console.warn('Brake sound file not found, skipping brake sound');
+                    brakeSoundRef.current = null;
+                    setIsPlayingSoundEffects(false);
+                    // Continue to patient audio
+                    setTimeout(() => {
+                      playPatientAudio();
+                    }, 500);
+                  };
+                  
+                  // Wait for audio to be ready, then skip first 1 second and play
+                  brakeSound.addEventListener('loadedmetadata', () => {
+                    // Skip the first 1 second of the audio
+                    brakeSound.currentTime = 1.0;
+                  });
+                  
+                  brakeSound.play().then(() => {
+                    // Ensure we start from 1 second mark (in case metadata wasn't loaded yet)
+                    if (brakeSound.currentTime < 1.0) {
+                      brakeSound.currentTime = 1.0;
+                    }
+                    
+                    // Stop brake sound after 2 seconds and play patient audio
+                    setTimeout(() => {
+                      if (brakeSoundRef.current) {
+                        brakeSoundRef.current.pause();
+                        brakeSoundRef.current.currentTime = 0;
+                        brakeSoundRef.current = null;
+                      }
+                      setIsPlayingSoundEffects(false); // Hide ambulance emoji
+                      console.log('Brake sound stopped, playing patient audio...');
+                      
+                      // Small delay before playing patient
+                      setTimeout(() => {
+                        playPatientAudio();
+                      }, 500);
+                    }, 2000); // 2 seconds for brake sound
+                  }).catch((brakeError) => {
+                    console.warn('Brake sound could not be played:', brakeError);
+                    setIsPlayingSoundEffects(false);
+                    // Continue to patient audio even if brake sound fails
+                    setTimeout(() => {
+                      playPatientAudio();
+                    }, 500);
+                  });
+                } catch (error) {
+                  console.warn('Error setting up brake sound:', error);
+                  setIsPlayingSoundEffects(false);
+                  // Continue to patient audio even if brake sound setup fails
+                  setTimeout(() => {
+                    playPatientAudio();
+                  }, 500);
+                }
+              };
+
+              try {
+                // Play ambulance siren for 4 seconds
+                console.log('Playing ambulance siren...');
+                setIsPlayingSoundEffects(true); // Show ambulance emoji
+                const sirenSound = new Audio('/ambulance-siren.mp3');
+                sirenSoundRef.current = sirenSound;
+                sirenSound.loop = true; // Loop the siren sound
+                
+                // Handle siren sound errors gracefully
+                sirenSound.onerror = () => {
+                  console.warn('Siren sound file not found, skipping siren sound');
+                  sirenSoundRef.current = null;
+                  // Continue to brake sound
+                  setTimeout(() => {
+                    playBrakeSound();
+                  }, 500);
+                };
+                
+                try {
+                  await sirenSound.play();
+                  
+                  // Stop siren after 4 seconds and play brake sound
+                  setTimeout(() => {
+                    if (sirenSoundRef.current) {
+                      sirenSoundRef.current.pause();
+                      sirenSoundRef.current.currentTime = 0;
+                      sirenSoundRef.current = null;
+                    }
+                    console.log('Siren stopped, playing brake sound (starting from 1 second mark)...');
+                    playBrakeSound();
+                  }, 4000); // 4 seconds for siren
+                } catch (sirenError) {
+                  console.warn('Siren sound could not be played:', sirenError);
+                  setIsPlayingSoundEffects(false);
+                  // Continue to brake sound even if siren fails
+                  setTimeout(() => {
+                    playBrakeSound();
+                  }, 500);
+                }
+              } catch (error) {
+                console.warn('Error setting up siren sound:', error);
+                setIsPlayingSoundEffects(false);
+                // Continue to brake sound even if sound setup fails
+                setTimeout(() => {
+                  playBrakeSound();
+                }, 500);
+              }
             };
             
             audio.onerror = () => {
@@ -580,40 +723,127 @@ Provide feedback after key assessment steps.`;
       const currentCheckCount = checkCount !== undefined ? checkCount : vitalSignChecked;
       console.log('generateVitalSigns called with checkCount:', checkCount, 'vitalSignChecked state:', vitalSignChecked, 'currentCheckCount:', currentCheckCount);
       
-      // If this is the second time checking vital signs (vitalSignChecked == 2), set ALL vital signs to normal (blue) values
+      // If this is the second time checking vital signs (vitalSignChecked == 2), animate ALL vital signs to normal (blue) values
       if (currentCheckCount === 2) {
-        console.log('Second vital signs check detected - setting all vital signs to normal (blue) values');
+        console.log('Second vital signs check detected - animating all vital signs to normal (blue) values');
         
         // Simulate taking vital signs (2-3 second delay)
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Set all vital signs to random normal values within specified ranges
-        const normalVitals = {
+        // Get current vital signs values
+        const currentVitals = { ...vitalSigns };
+        
+        // Set target normal values within specified ranges
+        const targetVitals = {
           bloodPressure: `${Math.floor(Math.random() * 11) + 110}/${Math.floor(Math.random() * 11) + 70}`, // 110-120/70-80
-          heartRate: String(Math.floor(Math.random() * 41) + 60), // 60-100 (normal range)
-          oxygenSaturation: String(Math.floor(Math.random() * 6) + 95), // 95-100 (normal range)
-          temperature: '98.6', // Normal: 98.6
-          respiratoryRate: String(Math.floor(Math.random() * 9) + 12), // 12-20 (normal range)
-          glucose: String(Math.floor(Math.random() * 31) + 70) // 70-100 (normal range)
+          heartRate: Math.floor(Math.random() * 41) + 60, // 60-100 (normal range)
+          oxygenSaturation: Math.floor(Math.random() * 6) + 95, // 95-100 (normal range)
+          temperature: 98.6, // Normal: 98.6
+          respiratoryRate: Math.floor(Math.random() * 9) + 12, // 12-20 (normal range)
+          glucose: Math.floor(Math.random() * 31) + 70 // 70-100 (normal range)
         };
         
-        console.log('Setting all vital signs to normal values:', normalVitals);
+        console.log('Animating vital signs from:', currentVitals, 'to:', targetVitals);
         
-        // Force a complete state update by setting all vital signs at once
-        // Use a new object reference to ensure React detects the change
-        setVitalSigns({
-          bloodPressure: normalVitals.bloodPressure,
-          heartRate: normalVitals.heartRate,
-          oxygenSaturation: normalVitals.oxygenSaturation,
-          temperature: normalVitals.temperature,
-          respiratoryRate: normalVitals.respiratoryRate,
-          glucose: normalVitals.glucose
-        });
+        // Helper function to parse numeric value from string
+        const parseNumeric = (value: string | null | undefined, fallback: number = 0): number => {
+          if (!value) return fallback;
+          const num = parseFloat(value.replace(/[^\d.]/g, ''));
+          return isNaN(num) ? fallback : num;
+        };
         
-        console.log('State update called - vital signs should update to:', normalVitals);
+        // Helper function to parse blood pressure (systolic/diastolic)
+        const parseBloodPressure = (value: string | null | undefined, fallbackSystolic: number = 120, fallbackDiastolic: number = 80): [number, number] => {
+          if (!value) return [fallbackSystolic, fallbackDiastolic];
+          const parts = value.split('/');
+          const systolic = parseFloat(parts[0]?.replace(/[^\d.]/g, '') || String(fallbackSystolic));
+          const diastolic = parseFloat(parts[1]?.replace(/[^\d.]/g, '') || String(fallbackDiastolic));
+          return [isNaN(systolic) ? fallbackSystolic : systolic, isNaN(diastolic) ? fallbackDiastolic : diastolic];
+        };
         
-        // Small delay to ensure state update is processed
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Parse target blood pressure
+        const [targetSystolic, targetDiastolic] = parseBloodPressure(targetVitals.bloodPressure);
+        
+        // Get current values with fallbacks (use target values as fallback if current is missing)
+        const currentHeartRate = parseNumeric(currentVitals.heartRate, targetVitals.heartRate);
+        const currentOxygen = parseNumeric(currentVitals.oxygenSaturation, targetVitals.oxygenSaturation);
+        const currentTemp = parseNumeric(currentVitals.temperature, targetVitals.temperature);
+        const currentRespiratory = parseNumeric(currentVitals.respiratoryRate, targetVitals.respiratoryRate);
+        const currentGlucose = parseNumeric(currentVitals.glucose, targetVitals.glucose);
+        const [currentSystolic, currentDiastolic] = parseBloodPressure(currentVitals.bloodPressure, targetSystolic, targetDiastolic);
+        
+        // Animation parameters
+        const duration = 5000; // 5 seconds (slower animation)
+        const steps = 50; // Number of animation steps (more steps for smoother animation)
+        const stepDelay = duration / steps;
+        
+        // Add a follow-up patient message during animation about feeling better
+        const improvementMessages = [
+          "(Breathing more steadily) I'm really starting to feel better now...",
+          "(Voice getting stronger) The medication seems to be working, I can breathe easier.",
+          "(Relieved) My chest doesn't feel as tight anymore.",
+          "(Calmer) I think I'm improving - I don't feel as dizzy.",
+          "(More comfortable) I'm feeling much better than before."
+        ];
+        
+        // Add follow-up message after a short delay during animation
+        setTimeout(() => {
+          const randomMessage = improvementMessages[Math.floor(Math.random() * improvementMessages.length)];
+          const followUpMessageId = `patient-followup-${Date.now()}`;
+          setMessages(prev => [
+            ...prev,
+            {
+              id: followUpMessageId,
+              speaker: 'patient',
+              text: randomMessage,
+              timestamp: new Date(),
+              stageDirections: extractStageDirections(randomMessage)
+            }
+          ]);
+          
+          // Play audio for the follow-up message
+          const patientAge = currentScenario?.dispatchInfo?.age ? parseInt(currentScenario.dispatchInfo.age) : undefined;
+          const patientGender = currentScenario?.dispatchInfo?.gender as 'M' | 'F' | undefined;
+          const stageDirs = extractStageDirections(randomMessage);
+          textToSpeech(randomMessage, 'patient', patientAge?.toString() || 'default', stageDirs).then(audioUrl => {
+            if (audioUrl) {
+              const followUpMessageId = `patient-followup-${Date.now()}`;
+              playAudio(followUpMessageId, randomMessage, 'patient', stageDirs);
+            }
+          });
+        }, 1500); // Wait 1.5 seconds after animation starts
+        
+        // Animate each vital sign
+        for (let step = 0; step <= steps; step++) {
+          const progress = step / steps;
+          const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease-out cubic
+          
+          // Interpolate values
+          const animatedHeartRate = Math.round(currentHeartRate + (targetVitals.heartRate - currentHeartRate) * easeProgress);
+          const animatedOxygen = Math.round(currentOxygen + (targetVitals.oxygenSaturation - currentOxygen) * easeProgress);
+          const animatedTemp = (currentTemp + (targetVitals.temperature - currentTemp) * easeProgress).toFixed(1);
+          const animatedRespiratory = Math.round(currentRespiratory + (targetVitals.respiratoryRate - currentRespiratory) * easeProgress);
+          const animatedGlucose = Math.round(currentGlucose + (targetVitals.glucose - currentGlucose) * easeProgress);
+          const animatedSystolic = Math.round(currentSystolic + (targetSystolic - currentSystolic) * easeProgress);
+          const animatedDiastolic = Math.round(currentDiastolic + (targetDiastolic - currentDiastolic) * easeProgress);
+          
+          // Update state
+          setVitalSigns({
+            bloodPressure: `${animatedSystolic}/${animatedDiastolic}`,
+            heartRate: String(animatedHeartRate),
+            oxygenSaturation: String(animatedOxygen),
+            temperature: animatedTemp,
+            respiratoryRate: String(animatedRespiratory),
+            glucose: String(animatedGlucose)
+          });
+          
+          // Wait before next step
+          if (step < steps) {
+            await new Promise(resolve => setTimeout(resolve, stepDelay));
+          }
+        }
+        
+        console.log('Animation complete - vital signs are now normal');
         
         setIsTakingVitalSigns(false);
         return;
@@ -1253,10 +1483,24 @@ Format rules:
   };
 
   const startNewScenario = async () => {
+    // Save current scenario to session history if it exists
+    if (currentScenario && messages.length > 0 && currentScenarioStartTime) {
+      const endTime = new Date();
+      const scenarioElapsed = Math.floor((endTime.getTime() - currentScenarioStartTime.getTime()) / 1000);
+      setSessionScenarios(prev => [...prev, {
+        scenario: currentScenario,
+        messages: [...messages],
+        startTime: currentScenarioStartTime,
+        endTime: endTime,
+        elapsedTime: scenarioElapsed
+      }]);
+    }
+    
     setIsLoading(true);
     setScenarioStarted(true);
     setMessages([]);
     setCurrentScenario(null);
+    setCurrentScenarioStartTime(null);
     setIsSpeaking(false);
     setVitalSigns({}); // Reset vital signs for new scenario
     setIntervention(null); // Clear any active intervention
@@ -1267,6 +1511,15 @@ Format rules:
     setPlayingAudio(null);
     setCurrentSpeaker(null);
     setIsIncomingCall(false);
+    
+    // Stop and reset timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    setIsTimerRunning(false);
+    setElapsedTime(0);
+    
     if (dispatchSoundRef.current) {
       dispatchSoundRef.current.pause();
       dispatchSoundRef.current = null;
@@ -1345,6 +1598,7 @@ Format rules:
       ]);
 
       setCurrentScenario(scenario);
+      setCurrentScenarioStartTime(new Date()); // Track when scenario starts
       toast({
         title: "Scenario Started",
         description: `${scenario.type} - ${scenario.description}`,
@@ -1391,6 +1645,9 @@ Format rules:
       ];
       const isAskingAboutVitals = vitalSignsKeywords.some(keyword => text.toLowerCase().includes(keyword));
       
+      // Check if this is the second vital signs check (before incrementing)
+      const isSecondCheck = vitalSignCheckedRef.current === 1;
+      
       const patientPrompt = `The EMT student just asked you: "${text}"
       Respond as the patient. Provide realistic, detailed information based on your symptoms and condition. 
       Remember you're in distress - be natural and consistent with your symptoms.
@@ -1399,7 +1656,7 @@ Format rules:
       - If you agree, simply say "yes", "sure", "okay", "go ahead", or similar permission
       - DO NOT provide actual vital sign values - you don't know your exact numbers
       - Just give permission for them to measure you
-      - You can mention how you're feeling (e.g., "yes, I feel really dizzy" or "sure, my heart feels like it's racing") but don't give specific numbers` : ''}`;
+      ${isSecondCheck ? `- IMPORTANT: This is the SECOND time they're checking your vital signs. You received treatment/intervention earlier, and you're starting to feel better. Mention that you're feeling gradually better, that your symptoms are improving, that you can breathe easier, or that the pain/discomfort is lessening. Be natural and realistic - you're improving but still recovering. Examples: "Yes, I'm actually starting to feel a bit better now" or "Sure, I think the medication is helping - I can breathe easier" or "Okay, I feel like my chest isn't as tight anymore"` : `- You can mention how you're feeling (e.g., "yes, I feel really dizzy" or "sure, my heart feels like it's racing") but don't give specific numbers`}` : ''}`;
 
       const patientResponse = await callGeminiAPI(patientPrompt, PATIENT_PROMPT, conversationHistory);
       const patientStageDirections = extractStageDirections(patientResponse);
@@ -1559,6 +1816,15 @@ Format rules:
     console.log('Vital sign checked count:', vitalSignChecked);
   }, [vitalSigns, vitalSignChecked]);
 
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
+
   const handleMicToggle = () => {
     // Microphone button for speech recognition
     // Click once to start recording, click again to stop and send to patient AI
@@ -1709,6 +1975,43 @@ Format rules:
                 <span className="hidden sm:inline">New Scenario</span>
                 <span className="sm:hidden">New</span>
               </Button>
+              <Button
+                onClick={() => {
+                  // Save current scenario if exists
+                  if (currentScenario && messages.length > 0 && currentScenarioStartTime) {
+                    const endTime = new Date();
+                    const scenarioElapsed = Math.floor((endTime.getTime() - currentScenarioStartTime.getTime()) / 1000);
+                    setSessionScenarios(prev => [...prev, {
+                      scenario: currentScenario,
+                      messages: [...messages],
+                      startTime: currentScenarioStartTime,
+                      endTime: endTime,
+                      elapsedTime: scenarioElapsed
+                    }]);
+                  }
+                  // Navigate to summary with session data
+                  navigate('/session-summary', { 
+                    state: { 
+                      scenarios: currentScenario && messages.length > 0 && currentScenarioStartTime 
+                        ? [...sessionScenarios, {
+                            scenario: currentScenario,
+                            messages: [...messages],
+                            startTime: currentScenarioStartTime,
+                            endTime: new Date(),
+                            elapsedTime: Math.floor((new Date().getTime() - currentScenarioStartTime.getTime()) / 1000)
+                          }]
+                        : sessionScenarios
+                    } 
+                  });
+                }}
+                variant="outline"
+                size="sm"
+                className="hover:scale-105 transition-transform duration-300 border-destructive/50 text-destructive hover:bg-destructive/10"
+                disabled={isLoading}
+              >
+                <span className="hidden sm:inline">End Session</span>
+                <span className="sm:hidden">End</span>
+              </Button>
               <ThemeToggle />
             </div>
           </div>
@@ -1732,10 +2035,11 @@ Format rules:
               isSpeaking={isSpeaking}
               isListening={isListening}
               onMicToggle={handleMicToggle}
-              characterName={isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
+              characterName={isPlayingSoundEffects ? ' Help is on the way 💥ᯓ🏃🏻‍♀️‍➡️' : isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
               characterRole={currentScenario?.type || "Emergency Scene"}
               isIncomingCall={isIncomingCall}
               isTakingVitalSigns={isTakingVitalSigns}
+              elapsedTime={elapsedTime}
             />
           ) : (
             <TranscriptView
