@@ -197,7 +197,7 @@ Provide feedback after key assessment steps.`;
         // In continuous mode, onend fires when recognition stops
         // If user manually stopped (isListening is false), process the transcript
         // Otherwise, it might have stopped due to timeout/error, so restart if still listening
-        if (!isListening) {
+    if (!isListening) {
           // User manually stopped, process the transcript from ref
           const finalTranscript = transcriptBufferRef.current.trim();
           if (finalTranscript) {
@@ -1223,7 +1223,7 @@ Format rules:
         });
       } catch (error) {
         console.error('Error starting speech recognition:', error);
-        setIsListening(false);
+      setIsListening(false);
         toast({
           title: "Error",
           description: "Failed to start speech recognition. Please try again.",
@@ -1294,21 +1294,21 @@ Format rules:
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-hidden min-w-0">
-          {view === "visual" ? (
-            <VisualView
-              isSpeaking={isSpeaking}
-              isListening={isListening}
-              onMicToggle={handleMicToggle}
+        {view === "visual" ? (
+          <VisualView
+            isSpeaking={isSpeaking}
+            isListening={isListening}
+            onMicToggle={handleMicToggle}
               characterName={isIncomingCall ? 'Incoming Call' : currentSpeaker === 'dispatcher' ? 'Dispatcher' : currentSpeaker === 'patient' ? 'Patient' : 'Patient'}
               characterRole={currentScenario?.type || "Emergency Scene"}
               isIncomingCall={isIncomingCall}
               isTakingVitalSigns={isTakingVitalSigns}
-            />
-          ) : (
-            <TranscriptView
-              messages={messages}
-              isListening={isListening}
-              onMicToggle={handleMicToggle}
+          />
+        ) : (
+          <TranscriptView
+            messages={messages}
+            isListening={isListening}
+            onMicToggle={handleMicToggle}
               onSendMessage={sendMessage}
               userInput={userInput}
               setUserInput={setUserInput}
@@ -1318,8 +1318,8 @@ Format rules:
               playingAudio={playingAudio}
               stopAudio={stopAudio}
               currentScenario={currentScenario}
-            />
-          )}
+          />
+        )}
         </div>
       </main>
 
