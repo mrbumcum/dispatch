@@ -4,9 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Index from "./pages/Index";
 import Home from "./pages/Home";
 import PatientSimulation from "./pages/PatientSimulation";
+import RadioSimulation from "./pages/RadioSimulation";
+import Flashcards from "./pages/Flashcards";
 import ResponseAreaQuiz from "./pages/ResponseAreaQuiz";
 import NotFound from "./pages/NotFound";
 
@@ -22,8 +23,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/patient-simulation" element={<PatientSimulation />} />
+            <Route path="/radio-simulation" element={<RadioSimulation />} />
+            <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/response-area-quiz" element={<ResponseAreaQuiz />} />
-            <Route path="/index" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
