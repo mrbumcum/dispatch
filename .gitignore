@@ -17,5 +17,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
-
+config.tsx
+config.ts
 
