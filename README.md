@@ -28,6 +28,8 @@ FieldReady includes four core training modules:
 
 ## Design Architecture for Patient Situation
 
+![AI Simulation Agent Architecture](./dispatch-architecture.png)
+
 ---
 
 ### **2. Response Area Quiz**
