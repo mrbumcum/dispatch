@@ -6,7 +6,7 @@ FieldReady is an interactive EMT training platform designed to help trainees bui
 
 ## **Inspiration**
 
-EMTs must be prepared not only to assess and treat patients, but also to navigate their response areas quickly and accurately. Learning street names, building numbers, and dispatch communication is just as important as clinical skills. FieldReady was created to provide a comprehensive, hands-on environment that helps trainees practice all of these competencies—before ever stepping into the field.
+EMTs must be prepared not only to assess and treat patients, but also to navigate their response areas quickly and accurately. Learning street names, building numbers, and dispatch communication is just as important as clinical skills. FieldReady was created to provide a comprehensive, hands-on environment that helps trainees practice all of these competencies, before ever stepping into the field.
 
 ---
 
