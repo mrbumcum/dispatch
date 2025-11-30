@@ -1,11 +1,11 @@
-# API Configuration
-config.js
-client/config.js
+# API Configuration (root-only)
+/config.js
+/client/config.js
 
 # Environment files
-.env
-.env.local
-.env.*.local
+/.env
+/.env.local
+/.env.*.local
 
 # OS files
 .DS_Store
@@ -17,6 +17,8 @@ Thumbs.db
 *.swp
 *.swo
 *~
-config.tsx
-config.ts
+
+# TypeScript config files (root-only; allow config under frontend/src)
+/config.tsx
+/config.ts
 

@@ -2,7 +2,7 @@
 // DO NOT commit config.ts to version control
 
 export const CONFIG = {
-  GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE',
-  ELEVENLABS_API_KEY: 'YOUR_ELEVENLABS_API_KEY_HERE'
+  GEMINI_API_KEY: import.meta.env.GEMINI_API_KEY,
+  ELEVENLABS_API_KEY: import.meta.env.ELEVENLABS_API_KEY
 };
 

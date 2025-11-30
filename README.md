@@ -90,30 +90,52 @@ FieldReady is built using a modern, scalable, and modular stack:
 
 ## Getting Started
 
-### 1. Get Your Gemini API Key
+### 1. Get Your API Keys
 
+Gemini (text/AI):
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key" or use an existing key
-4. Copy your API key
+2. Sign in and create/copy an API key
 
-### 2. Configure the API Key
+ElevenLabs (voices):
+1. Go to [ElevenLabs](https://elevenlabs.io/)
+2. Create/copy your API key
 
-1. Copy the example config file:
+Supabase (database):
+1. Create a Supabase project
+2. Copy your Project URL and the anon public key
+
+### 2. Configure Environment Variables (Vite)
+
+All frontend secrets live in `frontend/.env` and use the `VITE_` prefix so Vite exposes them to the client.
+
+1. Copy the example env file:
    ```bash
-   cp config.example.js config.js
+   cd frontend
+   cp .env.example .env
    ```
+2. Fill real values in `frontend/.env`:
+   ```env
+   VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+   VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+   VITE_GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+   VITE_ELEVENLABS_API_KEY=YOUR_ELEVENLABS_API_KEY
+   ```
+3. In code, read them via `import.meta.env` (examples):
+   ```ts
+   // frontend/src/supabase-client.ts
+   const url = import.meta.env.VITE_SUPABASE_URL;
+   const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-2. Open `config.js` and replace `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
-   ```javascript
-   const CONFIG = {
-       GEMINI_API_KEY: 'your-actual-api-key-here'
+   // frontend/src/config.ts
+   export const CONFIG = {
+     GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY ?? "",
+     ELEVENLABS_API_KEY: import.meta.env.VITE_ELEVENLABS_API_KEY ?? "",
    };
    ```
 
-   ⚠️ **Note**: The `config.js` file is gitignored and will not be committed to version control.
+⚠️ **Note**: Do not commit `.env`. Commit only `frontend/.env.example`.
 
-### 3. Run the Application
+### 3. Run the Application (Legacy demo)
 
 1. Start a local server:
    ```bash

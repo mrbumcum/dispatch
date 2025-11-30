@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 
 # Config files with API keys
-src/config.ts
+.env

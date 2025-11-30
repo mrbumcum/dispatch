@@ -36,11 +36,9 @@ cd PatientSimulation
 # 2. Install dependencies
 npm install
 
-# 3. Set up API keys (see API Configuration section below)
-cp src/config.example.ts src/config.ts
-
-# 4. Edit src/config.ts and add your API keys
-# (Open the file in your editor and replace the placeholder values with your actual API keys)
+# 3. Set up environment variables
+copy .env.example .env
+# Edit .env and add your real VITE_* keys
 
 # 5. Start the development server
 npm run dev
@@ -69,49 +67,40 @@ This will install all required packages including:
 - React & React DOM
 - Vite (build tool)
 - TypeScript
-- Tailwind CSS
-- Shadcn UI components
-- And more...
+## Environment Setup
 
-### Step 3: Configure API Keys
+All client-side keys live in `frontend/.env` and use the `VITE_` prefix.
 
-You'll need API keys from two services:
+1. Copy template and fill values:
+```
+cp .env.example .env
+```
 
-#### Get Gemini API Key
+2. Add your keys in `.env`:
+```
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+VITE_GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+VITE_ELEVENLABS_API_KEY=YOUR_ELEVENLABS_API_KEY
+```
 
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Sign in with your Google account
-3. Click "Create API Key" or use an existing key
-4. Copy your API key
+3. Access them in code via `import.meta.env`:
+```
+// src/supabase-client.ts
+const url = import.meta.env.VITE_SUPABASE_URL
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-#### Get ElevenLabs API Key
+// src/config.ts
+export const CONFIG = {
+   GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY ?? "",
+   ELEVENLABS_API_KEY: import.meta.env.VITE_ELEVENLABS_API_KEY ?? "",
+}
+```
 
-1. Go to [ElevenLabs](https://elevenlabs.io/)
-2. Sign up or log in
-3. Navigate to your profile/settings
-4. Copy your API key
-
-#### Configure the Keys
-
-1. Copy the example config file:
-   ```bash
-   cp src/config.example.ts src/config.ts
-   ```
-
-2. Open `src/config.ts` in your editor and replace the placeholders:
-   ```typescript
-   // API Configuration
-   // This file should be gitignored in production
-   export const CONFIG = {
-     GEMINI_API_KEY: 'your-actual-gemini-api-key-here',
-     ELEVENLABS_API_KEY: 'your-actual-elevenlabs-api-key-here'
-   };
-   ```
-
-   ⚠️ **Important**: The `src/config.ts` file is gitignored and will NOT be committed to version control. Never share your API keys publicly.
+Restart `vite` when `.env` changes.
 
 ### Step 4: Run the Development Server
-
+This app uses React Router. For production on static hosts, enable SPA fallback (rewrite all routes to `index.html`). Vite dev server already handles this locally.
 ```bash
 npm run dev
 ```
@@ -151,35 +140,23 @@ npm run lint
 ## Project Structure
 
 ```
-PatientSimulation/
-├── public/              # Static assets (audio files, favicon)
-│   ├── dispatch-sound.mp3
-│   ├── ambulance-siren.mp3
-│   ├── car-brake.mp3
-│   └── ...
+frontend/
+├── public/                # Static assets
 ├── src/
-│   ├── components/      # React components
-│   │   ├── ui/         # Shadcn UI components
-│   │   ├── VisualView.tsx
-│   │   ├── TranscriptView.tsx
-│   │   ├── VitalSigns.tsx
-│   │   ├── AudioWaveform.tsx
-│   │   └── ...
-│   ├── pages/          # Page components
-│   │   ├── Home.tsx              # Home page with feature selection
-│   │   ├── PatientSimulation.tsx # Main patient simulation page
-│   │   ├── SessionSummary.tsx    # Performance summary and grades
-│   │   ├── RadioSimulation.tsx   # Radio simulation (placeholder)
-│   │   ├── Flashcards.tsx           # Flashcards (placeholder)
-│   │   └── ResponseAreaQuiz.tsx  # Response area quiz (placeholder)
-│   ├── contexts/        # React contexts
-│   │   └── ThemeContext.tsx
-│   ├── config.ts       # API keys (gitignored - DO NOT COMMIT)
-│   ├── config.example.ts  # Config template
-│   ├── App.tsx         # Main app component with routing
-│   └── main.tsx        # Entry point
+│   ├── components/        # UI + shadcn primitives
+│   ├── pages/             # Route pages (Home, PatientSimulation, etc.)
+│   ├── contexts/          # App context (ThemeContext)
+│   ├── hooks/             # Custom hooks
+│   ├── lib/               # Utilities
+│   ├── config.ts          # Reads VITE_* keys from `.env`
+│   ├── supabase-client.ts # Supabase client
+│   ├── App.tsx            # App shell + routing
+│   └── main.tsx           # Entry
+├── index.html
 ├── package.json
-└── README.md
+├── vite.config.ts
+├── .env.example           # Template (commit)
+└── .env                   # Secrets (gitignored)
 ```
 
 ## Technologies Used
@@ -202,10 +179,10 @@ If port 5173 is already in use, Vite will automatically try the next available p
 
 ### API Key Errors
 
-- **"API key is not configured"**: Make sure `src/config.ts` exists and contains valid API keys
-- **"401 Unauthorized"**: Your API key is invalid or expired. Get a new key from the provider
-- **"Model not available"**: The API model might have changed. Check the console for available models
-- **ElevenLabs Quota Exceeded**: If you see "quota exceeded" errors, the app will continue without audio. Check your ElevenLabs account for available credits
+- "API key is not configured": Ensure `.env` contains `VITE_GEMINI_API_KEY` and `VITE_ELEVENLABS_API_KEY`, and that Vite was restarted after changes.
+- "401 Unauthorized": Keys are invalid or expired. Regenerate Gemini/ElevenLabs keys in provider dashboards.
+- "Model not available": The requested AI model may have changed or is restricted. Check console logs and provider docs for available models.
+- "ElevenLabs quota exceeded": Audio will be disabled when quota is exhausted. Check your ElevenLabs account credits.
 
 ### Microphone Not Working
 
@@ -230,8 +207,8 @@ If port 5173 is already in use, Vite will automatically try the next available p
 
 ⚠️ **Never commit API keys to version control!**
 
-- `src/config.ts` is already in `.gitignore` - it will NOT be committed
-- Always use `src/config.example.ts` as a template
+- `.env` is gitignored and will NOT be committed
+- Always use `frontend/.env.example` as the template for local setup
 - Never share your API keys publicly
 - For production deployments, consider using environment variables or a backend proxy to secure API keys
 
@@ -242,10 +219,6 @@ If port 5173 is already in use, Vite will automatically try the next available p
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-[Add your license here]
 
 ## Support
 
