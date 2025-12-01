@@ -1,121 +1,30 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/supabase-client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Plus } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Plus, Trash2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LogoutButton } from "@/components/LogoutButton";
 
 interface FlashCard {
+  id: string;
   front: string;
   back: string;
 }
 
 interface Deck {
+  id: string;
   name: string;
-  cards: FlashCard[];
 }
 
-interface Decks {
-  [key: string]: Deck;
-}
-
-const defaultDecks: Decks = {
-  drugs: {
-    name: "EMT Drug Cards",
-    cards: [
-      {
-        front: "Epinephrine",
-        back: "Indications: Cardiac arrest, anaphylaxis, severe asthma. Dosage: 1mg (1:10,000) IV/IO for cardiac arrest; 0.3-0.5mg (1:1,000) IM for anaphylaxis. Contraindications: None in cardiac arrest. Side effects: Tachycardia, hypertension, anxiety.",
-      },
-      {
-        front: "Aspirin",
-        back: "Indications: Suspected acute coronary syndrome (ACS), chest pain. Dosage: 324mg (4 x 81mg tablets) chewed. Contraindications: Active bleeding, known allergy. Side effects: GI upset, increased bleeding risk.",
-      },
-      {
-        front: "Nitroglycerin",
-        back: "Indications: Chest pain suggestive of cardiac ischemia. Dosage: 0.4mg sublingual, repeat every 3-5 minutes (max 3 doses). Contraindications: SBP <90mmHg, use of PDE-5 inhibitors (Viagra, Cialis), right ventricular infarct. Side effects: Headache, hypotension, dizziness.",
-      },
-      {
-        front: "Albuterol",
-        back: "Indications: Bronchospasm, asthma, COPD exacerbation. Dosage: 2.5-5mg via nebulizer or 2-4 puffs via MDI. Contraindications: Hypersensitivity. Side effects: Tachycardia, tremors, nervousness.",
-      },
-      {
-        front: "Naloxone",
-        back: "Indications: Opioid overdose, respiratory depression from opioids. Dosage: 0.4-2mg IV/IM/IN (start with 0.4mg). Contraindications: None in overdose. Side effects: Acute withdrawal, agitation, nausea.",
-      },
-      {
-        front: "Dextrose 50%",
-        back: "Indications: Hypoglycemia, altered mental status with suspected low blood sugar. Dosage: 25g (50ml of D50) IV. Contraindications: Known hypersensitivity. Side effects: Hyperglycemia if given incorrectly, phlebitis.",
-      },
-      {
-        front: "Atropine",
-        back: "Indications: Symptomatic bradycardia, organophosphate poisoning. Dosage: 0.5-1mg IV/IO (repeat every 3-5 minutes, max 3mg). Contraindications: None in symptomatic bradycardia. Side effects: Tachycardia, dry mouth, blurred vision.",
-      },
-      {
-        front: "Diphenhydramine",
-        back: "Indications: Allergic reactions, anaphylaxis (adjunct), dystonic reactions. Dosage: 25-50mg IV/IM. Contraindications: Glaucoma, urinary retention. Side effects: Drowsiness, dry mouth, blurred vision.",
-      },
-    ],
-  },
-  vitals: {
-    name: "EMT Vital Signs",
-    cards: [
-      {
-        front: "Adult Normal Vital Signs",
-        back: "Heart Rate: 60-100 bpm. Respiratory Rate: 12-20 breaths/min. Blood Pressure: 120/80 mmHg (normal). Temperature: 98.6°F (37°C). Oxygen Saturation: 95-100%. Capillary Refill: <2 seconds.",
-      },
-      {
-        front: "Pediatric Normal Vital Signs (Infant)",
-        back: "Heart Rate: 100-160 bpm. Respiratory Rate: 30-60 breaths/min. Blood Pressure: 70-90/50-65 mmHg. Temperature: 98.6-99.5°F. Oxygen Saturation: 95-100%. Capillary Refill: <2 seconds.",
-      },
-      {
-        front: "Pediatric Normal Vital Signs (Child 1-3 years)",
-        back: "Heart Rate: 80-130 bpm. Respiratory Rate: 20-30 breaths/min. Blood Pressure: 90-105/55-70 mmHg. Temperature: 98.6-99.5°F. Oxygen Saturation: 95-100%. Capillary Refill: <2 seconds.",
-      },
-      {
-        front: "Pediatric Normal Vital Signs (Child 4-12 years)",
-        back: "Heart Rate: 70-110 bpm. Respiratory Rate: 15-25 breaths/min. Blood Pressure: 95-115/60-75 mmHg. Temperature: 98.6°F. Oxygen Saturation: 95-100%. Capillary Refill: <2 seconds.",
-      },
-      {
-        front: "Glasgow Coma Scale (GCS)",
-        back: "Eye Opening: 4=Spontaneous, 3=To voice, 2=To pain, 1=None. Verbal Response: 5=Oriented, 4=Confused, 3=Inappropriate words, 2=Incomprehensible sounds, 1=None. Motor Response: 6=Obeys commands, 5=Localizes pain, 4=Withdraws from pain, 3=Flexion to pain, 2=Extension to pain, 1=None. Total: 3-15 (15=Normal, <8=Severe).",
-      },
-      {
-        front: "Blood Pressure Classifications",
-        back: "Normal: <120/<80 mmHg. Elevated: 120-129/<80 mmHg. Stage 1 Hypertension: 130-139/80-89 mmHg. Stage 2 Hypertension: ≥140/≥90 mmHg. Hypertensive Crisis: >180/>120 mmHg. Hypotension: <90/<60 mmHg.",
-      },
-      {
-        front: "Respiratory Rate Classifications",
-        back: "Normal Adult: 12-20 breaths/min. Tachypnea: >20 breaths/min (adult), >60 (infant), >40 (child). Bradypnea: <12 breaths/min (adult), <30 (infant), <20 (child). Apnea: No breathing. Agonal: Slow, irregular, gasping breaths.",
-      },
-      {
-        front: "Heart Rate Classifications",
-        back: "Normal Adult: 60-100 bpm. Tachycardia: >100 bpm. Bradycardia: <60 bpm. Normal Infant: 100-160 bpm. Normal Child (1-3): 80-130 bpm. Normal Child (4-12): 70-110 bpm. Normal Adolescent: 60-100 bpm.",
-      },
-    ],
-  },
-};
+// Component now loads decks & cards from Supabase; removed hardcoded/localStorage seeded defaults.
 
 const Flashcards = () => {
   const navigate = useNavigate();
-  const [decks, setDecks] = useState<Decks>(() => {
-    const saved = localStorage.getItem("customDecks");
-    const customDeckNames = saved ? JSON.parse(saved) : {};
-    const allDecks = { ...defaultDecks };
-    Object.keys(customDeckNames).forEach((id) => {
-      if (!allDecks[id]) {
-        allDecks[id] = { name: customDeckNames[id], cards: [] };
-      }
-    });
-    return allDecks;
-  });
-
-  const [currentDeck, setCurrentDeck] = useState<string>(() => {
-    return localStorage.getItem("currentDeck") || "drugs";
-  });
-
+  const [decks, setDecks] = useState<Deck[]>([]);
+  const [currentDeckId, setCurrentDeckId] = useState<string | null>(() => localStorage.getItem("currentDeckId"));
   const [flashcards, setFlashcards] = useState<FlashCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -123,29 +32,160 @@ const Flashcards = () => {
   const [backInput, setBackInput] = useState("");
   const [showAddDeckModal, setShowAddDeckModal] = useState(false);
   const [newDeckName, setNewDeckName] = useState("");
+  const [loadingDecks, setLoadingDecks] = useState(false);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load flashcards for current deck
-  useEffect(() => {
-    const saved = localStorage.getItem(`flashcards_${currentDeck}`);
-    if (saved) {
-      setFlashcards(JSON.parse(saved));
-    } else {
-      setFlashcards([...decks[currentDeck].cards]);
+  const loadCards = async () => {
+      if (!currentDeckId) {
+        setFlashcards([]);
+        return;
+      }
+      setLoadingCards(true);
+      setErrorMessage(null);
+      const { data, error } = await supabase
+        .from("flashcards")
+        .select("id,front,back")
+        .eq("deck_id", currentDeckId)
+        .order("created_at", { ascending: true });
+      if (error) {
+        console.error(error);
+        setErrorMessage("Failed to load cards");
+        setFlashcards([]);
+      } else {
+        setFlashcards(data || []);
+        setCurrentCardIndex(0);
+        setIsFlipped(false);
+      }
+      setLoadingCards(false);
+    };
+  const loadDecks = async () => {
+    setLoadingDecks(true);
+    setErrorMessage(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id || null;
+    setUserId(uid);
+    if (!uid) {
+      setDecks([]);
+      setLoadingDecks(false);
+      return;
     }
-  }, [currentDeck, decks]);
-
-  // Save flashcards to localStorage
-  const saveFlashcards = (cards: FlashCard[]) => {
-    localStorage.setItem(`flashcards_${currentDeck}`, JSON.stringify(cards));
-    setFlashcards(cards);
+    const { data, error } = await supabase
+      .from("decks")
+      .select("id,name")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error(error);
+      setErrorMessage("Failed to load decks");
+      setDecks([]);
+    } else {
+      setDecks(data || []);
+      if (!currentDeckId && data && data.length > 0) {
+        setCurrentDeckId(data[0].id);
+        localStorage.setItem("currentDeckId", data[0].id);
+      }
+    }
+    setLoadingDecks(false);
   };
 
-  // Switch deck
+  // Fetch decks for current user (runs on mount only).
+  // No dependency on currentDeckId to avoid redundant refetch whenever deck selection changes.
+  useEffect(() => {
+      loadDecks();
+  }, []);
+
+  // Fetch cards when deck changes
+  useEffect(() => {  
+    loadCards();
+  }, [currentDeckId]);
+
   const switchDeck = (deckId: string) => {
-    setCurrentDeck(deckId);
-    setCurrentCardIndex(0);
+    setCurrentDeckId(deckId);
+    localStorage.setItem("currentDeckId", deckId);
+  };
+
+  const createDeck = async () => {
+    if (!newDeckName.trim()) {
+      alert("Please enter a deck name");
+      return;
+    }
+    if (!userId) {
+      alert("User not authenticated");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("decks")
+      .insert({ name: newDeckName.trim(), user_id: userId })
+      .select();
+    if (error) {
+      console.error(error);
+      alert("Error creating deck");
+      return;
+    }
+    const newDeck = data![0];
+    setDecks((prev) => [...prev, newDeck]);
+    setCurrentDeckId(newDeck.id);
+    localStorage.setItem("currentDeckId", newDeck.id);
+    setShowAddDeckModal(false);
+    setNewDeckName("");
+  };
+
+  const addCard = async () => {
+    if (!currentDeckId) {
+      alert("Select or create a deck first");
+      return;
+    }
+    if (!frontInput.trim() || !backInput.trim()) {
+      alert("Please fill in both front and back of the card!");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("flashcards")
+      .insert({ deck_id: currentDeckId, front: frontInput.trim(), back: backInput.trim() })
+      .select();
+    if (error) {
+      console.error(error);
+      alert("Error adding card");
+      return;
+    }
+    const inserted = data![0];
+    setFlashcards((prev) => [...prev, inserted]);
+    setFrontInput("");
+    setBackInput("");
+    setCurrentCardIndex(flashcards.length); // new last index
     setIsFlipped(false);
-    localStorage.setItem("currentDeck", deckId);
+  };
+
+  const deleteCard = async () => {
+    if (!currentCard) return;
+    
+    const confirmed = window.confirm(`Delete card: "${currentCard.front}"?`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("flashcards")
+      .delete()
+      .eq("id", currentCard.id);
+    
+    if (error) {
+      console.error(error);
+      alert("Error deleting card");
+      return;
+    }
+
+    // Remove from state
+    const newCards = flashcards.filter((card) => card.id !== currentCard.id);
+    setFlashcards(newCards);
+    
+    // Adjust index after deletion
+    if (newCards.length === 0) {
+      setCurrentCardIndex(0);
+    } else if (currentCardIndex >= newCards.length) {
+      setCurrentCardIndex(newCards.length - 1);
+    }
+    setIsFlipped(false);
   };
 
   // Format drug/vital info into sections
@@ -218,53 +258,7 @@ const Flashcards = () => {
     }
   }, [currentCardIndex, flashcards.length]);
 
-  // Add new card
-  const addCard = () => {
-    if (!frontInput.trim() || !backInput.trim()) {
-      alert("Please fill in both front and back of the card!");
-      return;
-    }
-
-    const newCards = [...flashcards, { front: frontInput.trim(), back: backInput.trim() }];
-    saveFlashcards(newCards);
-    setFrontInput("");
-    setBackInput("");
-    setCurrentCardIndex(newCards.length - 1);
-    setIsFlipped(false);
-  };
-
-  // Add new deck
-  const addDeck = () => {
-    if (!newDeckName.trim()) {
-      alert("Please enter a deck name");
-      return;
-    }
-
-    const slugify = (text: string) =>
-      text
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
-
-    const id = slugify(newDeckName);
-    if (decks[id]) {
-      alert("A deck with that name already exists");
-      return;
-    }
-
-    const newDecks = { ...decks, [id]: { name: newDeckName, cards: [] } };
-    setDecks(newDecks);
-
-    const saved = JSON.parse(localStorage.getItem("customDecks") || "{}");
-    saved[id] = newDeckName;
-    localStorage.setItem("customDecks", JSON.stringify(saved));
-
-    setNewDeckName("");
-    setShowAddDeckModal(false);
-    switchDeck(id);
-  };
+  // Keyboard navigation retained
 
   // Keyboard navigation
   useEffect(() => {
@@ -286,6 +280,7 @@ const Flashcards = () => {
   }, [flipCard, nextCard, prevCard, showAddDeckModal]);
 
   const currentCard = flashcards[currentCardIndex];
+  const currentDeck = decks.find((d) => d.id === currentDeckId) || null;
 
   return (
     <div className="h-screen bg-background transition-colors duration-500 relative overflow-hidden flex flex-col">
@@ -323,26 +318,32 @@ const Flashcards = () => {
       <main className="relative z-10 container mx-auto px-4 py-4 flex-1 flex flex-col min-h-0 max-w-4xl">
         {/* Deck Selector */}
         <div className="flex justify-center gap-2 mb-3 flex-wrap flex-shrink-0">
-          {Object.keys(decks).map((deckId) => (
+          {loadingDecks && <div className="text-white/60 text-sm">Loading decks...</div>}
+          {!loadingDecks && decks.length === 0 && (
+            <div className="text-white/60 text-sm">No decks yet. Create one.</div>
+          )}
+          {!loadingDecks && decks.map((deck) => (
             <Button
-              key={deckId}
-              onClick={() => switchDeck(deckId)}
-              variant={currentDeck === deckId ? "default" : "outline"}
+              key={deck.id}
+              onClick={() => switchDeck(deck.id)}
+              variant={currentDeckId === deck.id ? "default" : "outline"}
               size="sm"
               className={`transition-all duration-300 ${
-                currentDeck === deckId
+                currentDeckId === deck.id
                   ? "bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-cyan-500/50"
                   : "bg-white/10 border-white/20 text-white/70 hover:bg-white/20 hover:text-white"
               }`}
             >
-              {decks[deckId].name}
+              {deck.name}
             </Button>
           ))}
         </div>
 
         {/* Card Counter */}
         <div className="text-center text-white/70 text-sm mb-3 font-light flex-shrink-0">
-          {flashcards.length > 0 ? (
+          {loadingCards ? (
+            <>Loading cards...</>
+          ) : flashcards.length > 0 ? (
             <>
               {currentCardIndex + 1} / {flashcards.length}
             </>
@@ -366,7 +367,7 @@ const Flashcards = () => {
               style={{ backfaceVisibility: "hidden" }}
             >
               <div className="text-center text-white text-2xl md:text-3xl font-semibold drop-shadow-lg">
-                {currentCard ? currentCard.front : "No cards yet. Add one below!"}
+                {currentCard ? currentCard.front : loadingCards ? "Loading..." : "No cards yet. Add one below!"}
               </div>
             </Card>
 
@@ -383,7 +384,7 @@ const Flashcards = () => {
                     <div className="text-sm leading-relaxed">{currentCard.back}</div>
                   )
                 ) : (
-                  "No cards yet. Add one below!"
+                  loadingCards ? "Loading..." : "No cards yet. Add one below!"
                 )}
               </div>
             </Card>
@@ -413,9 +414,19 @@ const Flashcards = () => {
           </Button>
 
           <Button
+            onClick={deleteCard}
+            disabled={flashcards.length === 0}
+            className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
+            size="lg"
+          >
+            <Trash2 className="w-5 h-5 mr-2" />
+            Delete
+          </Button>
+
+          <Button
             onClick={nextCard}
             disabled={currentCardIndex === flashcards.length - 1 || flashcards.length === 0}
-            className="bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
+            className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-lg transition-all duration-300 hover:scale-105"
             size="lg"
           >
             Next
@@ -428,7 +439,7 @@ const Flashcards = () => {
           <h3 className="text-white text-lg font-medium mb-3">Add New Card</h3>
           <div className="space-y-2">
             <Input
-              placeholder={currentDeck === "vitals" ? "Condition" : "Drug name"}
+              placeholder={currentDeck?.name?.includes("Vital") ? "Condition" : "Front"}
               value={frontInput}
               onChange={(e) => setFrontInput(e.target.value)}
               onKeyPress={(e) => {
@@ -437,14 +448,11 @@ const Flashcards = () => {
                 }
               }}
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
+              disabled={!currentDeckId}
             />
             <Input
               id="back-input"
-              placeholder={
-                currentDeck === "vitals"
-                  ? "Vital signs"
-                  : "Indications, dosage, contraindications, side effects"
-              }
+              placeholder={currentDeck?.name?.includes("Vital") ? "Details" : "Back"}
               value={backInput}
               onChange={(e) => setBackInput(e.target.value)}
               onKeyPress={(e) => {
@@ -453,10 +461,12 @@ const Flashcards = () => {
                 }
               }}
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20"
+              disabled={!currentDeckId}
             />
             <Button
               onClick={addCard}
               className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white shadow-lg transition-all duration-300 hover:scale-105"
+              disabled={!currentDeckId}
             >
               Add Card
             </Button>
@@ -490,7 +500,7 @@ const Flashcards = () => {
               onChange={(e) => setNewDeckName(e.target.value)}
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
-                  addDeck();
+                  createDeck();
                 }
               }}
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-cyan-400 focus:ring-cyan-400/20 mb-4"
@@ -505,7 +515,7 @@ const Flashcards = () => {
                 Cancel
               </Button>
               <Button
-                onClick={addDeck}
+                onClick={createDeck}
                 className="flex-1 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white"
               >
                 Create Deck

@@ -5,19 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const Auth = () => {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
-
-    const handleSubmit = async (e: React.FormEvent) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setMessage(null);
         if (!email || !password) {
             setError("Please enter email and password.");
+            return;
+        }
+        if (isSignUp && (!firstName || !lastName)) {
+            setError("Please enter first and last name.");
             return;
         }
         setLoading(true);
@@ -26,6 +30,12 @@ const Auth = () => {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
+                    options: {
+                        data: {
+                            first_name: firstName,
+                            last_name: lastName,
+                        },
+                    },
                 });
                 if (error) throw error;
                 // Depending on your Supabase settings, signUp may require email verification
@@ -59,6 +69,38 @@ const Auth = () => {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {isSignUp && (
+                            <>
+                                <div className="space-y-2">
+                                    <label htmlFor="firstName" className="text-sm font-medium">
+                                        First Name
+                                    </label>
+                                    <Input
+                                        id="firstName"
+                                        type="text"
+                                        placeholder="John"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        disabled={loading}
+                                        autoComplete="given-name"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label htmlFor="lastName" className="text-sm font-medium">
+                                        Last Name
+                                    </label>
+                                    <Input
+                                        id="lastName"
+                                        type="text"
+                                        placeholder="Doe"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        disabled={loading}
+                                        autoComplete="family-name"
+                                    />
+                                </div>
+                            </>
+                        )}
                         <div className="space-y-2">
                             <label htmlFor="email" className="text-sm font-medium">
                                 Email
