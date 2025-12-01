@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { LogoutButton } from "@/components/LogoutButton";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -542,6 +543,7 @@ const ResponseAreaQuiz = () => {
                 <span className="sm:hidden">{gameStarted ? 'Next' : 'Start'}</span>
               </Button>
               <ThemeToggle />
+              <LogoutButton/>
             </div>
           </div>
         </div>

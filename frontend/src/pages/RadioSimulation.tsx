@@ -6,6 +6,7 @@ import { ArrowLeft, Radio, Mic, MicOff, Play, Pause } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
 import { CONFIG } from "@/config";
+import { LogoutButton } from "@/components/LogoutButton";
 declare global {
   interface Window {
     webkitSpeechRecognition: any;
@@ -597,6 +598,7 @@ Score guidelines:
                 Back
               </Button>
               <ThemeToggle />
+              <LogoutButton/>
             </div>
           </div>
         </div>

@@ -1,11 +1,31 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Activity, Radio, BookOpen, Map } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LogoutButton } from "@/components/LogoutButton"
+import { supabase } from "@/supabase-client"
+import Auth from "@/pages/Auth"
 
 const Home = () => {
   const navigate = useNavigate();
+  const [session, setSession] = useState(null);
+  const fetchSession = async () => {
+    const currentSession = await supabase.auth.getSession()
+    setSession( currentSession.data.session)
+  }
+  useEffect(() => {
+    fetchSession()
+    const {data: authListener} = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    }
+  },[]
+  )
 
   const features = [
     {
@@ -43,88 +63,99 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-500">
-      {/* Header */}
-      <header className="glass border-b border-border/50 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl gradient-hero flex items-center justify-center shadow-lg">
-                <span className="text-3xl">🚑</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  FieldReady
-                </h1>
-                <p className="text-sm text-muted-foreground">Choose a training module to begin</p>
+    <>
+      { session ? (
+        <div className="min-h-screen bg-background transition-colors duration-500">
+          {/* Header */}
+          <header className="glass border-b border-border/50 z-50">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl gradient-hero flex items-center justify-center shadow-lg">
+                    <span className="text-3xl">🚑</span>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      FieldReady
+                    </h1>
+                    <p className="text-sm text-muted-foreground">Choose a training module to begin</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ThemeToggle />
+                  <LogoutButton />  
+                </div>
+                
               </div>
             </div>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+          </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-12">
-        <div className="max-w-6xl mx-auto">
-          {/* Welcome Section */}
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold leading-tight mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Are you Field Ready?
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Enhance your emergency medical skills through interactive simulations, 
-              practice scenarios, and comprehensive study tools.
-            </p>
-          </div>
+          {/* Main Content */}
+          <main className="container mx-auto px-4 py-12">
+            <div className="max-w-6xl mx-auto">
+              {/* Welcome Section */}
+              <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold leading-tight mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Are you Field Ready?
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Enhance your emergency medical skills through interactive simulations, 
+                  practice scenarios, and comprehensive study tools.
+                </p>
+              </div>
 
-          {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {features.map((feature) => (
-              <Card
-                key={feature.id}
-                className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-105 border-border/50 overflow-hidden"
-                onClick={() => navigate(feature.path)}
-              >
-                <CardHeader className={`bg-gradient-to-br ${feature.gradient} text-white p-6`}>
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-                      {feature.icon}
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-2xl text-white mb-2">
-                        {feature.title}
-                      </CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <CardDescription className="text-base text-foreground mb-4">
-                    {feature.description}
-                  </CardDescription>
-                  <Button 
-                    className={`w-full bg-gradient-to-r ${feature.gradient} text-white hover:opacity-90 transition-opacity`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(feature.path);
-                    }}
+              {/* Feature Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {features.map((feature) => (
+                  <Card
+                    key={feature.id}
+                    className="group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-105 border-border/50 overflow-hidden"
+                    onClick={() => navigate(feature.path)}
                   >
-                    Start Training
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardHeader className={`bg-gradient-to-br ${feature.gradient} text-white p-6`}>
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                          {feature.icon}
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-2xl text-white mb-2">
+                            {feature.title}
+                          </CardTitle>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <CardDescription className="text-base text-foreground mb-4">
+                        {feature.description}
+                      </CardDescription>
+                      <Button 
+                        className={`w-full bg-gradient-to-r ${feature.gradient} text-white hover:opacity-90 transition-opacity`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(feature.path);
+                        }}
+                      >
+                        Start Training
+                      </Button>
+                    </CardContent>
+                  </Card>
+              ))}
+            </div>
 
-          {/* Footer Info */}
-          <div className="mt-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              Select a training module above to begin your practice session
-            </p>
+            {/* Footer Info */}
+            <div className="mt-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                Select a training module above to begin your practice session
+              </p>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
     </div>
+    ):
+    (<Auth/>)    
+    }
+    </>
+    
   );
 };
 

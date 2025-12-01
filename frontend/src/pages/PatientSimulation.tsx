@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LogoutButton } from "@/components/LogoutButton";
 import { ViewToggle } from "@/components/ViewToggle";
 import { VisualView } from "@/components/VisualView";
 import { TranscriptView } from "@/components/TranscriptView";
@@ -2013,6 +2014,7 @@ Format rules:
                 <span className="sm:hidden">End</span>
               </Button>
               <ThemeToggle />
+              <LogoutButton/>
             </div>
           </div>
         </div>

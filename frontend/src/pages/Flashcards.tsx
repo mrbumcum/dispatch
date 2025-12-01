@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, ChevronLeft, ChevronRight, RotateCw, Plus } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LogoutButton } from "@/components/LogoutButton";
 
 interface FlashCard {
   front: string;
@@ -312,6 +313,7 @@ const Flashcards = () => {
                 Back
               </Button>
               <ThemeToggle />
+              <LogoutButton/>
             </div>
           </div>
         </div>
