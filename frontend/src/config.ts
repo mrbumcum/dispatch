@@ -2,7 +2,6 @@
 // DO NOT commit config.ts to version control
 
 export const CONFIG = {
-  GEMINI_API_KEY: import.meta.env.GEMINI_API_KEY,
-  ELEVENLABS_API_KEY: import.meta.env.ELEVENLABS_API_KEY
+  BACKEND_URL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'
 };
 

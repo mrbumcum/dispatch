@@ -1,12 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Radio, Mic, MicOff, Play, Pause } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/hooks/use-toast";
-import { CONFIG } from "@/config";
 import { LogoutButton } from "@/components/LogoutButton";
+import { RadioSimulationAPI, type RadioCall as APIRadioCall } from "@/services/RadioSimulationAPI";
 declare global {
   interface Window {
     webkitSpeechRecognition: any;
@@ -50,11 +50,14 @@ interface SpeechRecognitionAlternative {
 }
 
 interface RadioCall {
+  id: string;
   unitNumber: string;
-  address: string;
-  age: string;
+  startingAddress: string;
+  incidentAddress: string;
+  age: number;
   gender: "Male" | "Female";
   complaint: string;
+  dispatchText: string;
 }
 
 interface CallResult {
@@ -65,16 +68,12 @@ interface CallResult {
   timestamp: Date;
 }
 
-const GEMINI_API_KEY = CONFIG?.GEMINI_API_KEY || '';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-const ELEVENLABS_API_KEY = CONFIG?.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
-
 const RadioSimulation = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // State
+  // Session state
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentCall, setCurrentCall] = useState<RadioCall | null>(null);
   const [callResults, setCallResults] = useState<CallResult[]>([]);
   const [totalScore, setTotalScore] = useState(0);
@@ -97,6 +96,50 @@ const RadioSimulation = () => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptBufferRef = useRef<string>('');
   const isListeningRef = useRef<boolean>(false);
+
+  // Initialize or resume session on mount
+  useEffect(() => {
+    const initializeSession = async () => {
+      try {
+        // Try to get active session first
+        const activeSession = await RadioSimulationAPI.getActiveSession();
+        if (activeSession) {
+          setSessionId(activeSession.id);
+          setCallCount(activeSession.total_calls || 0);
+          setTotalScore(activeSession.average_score || 0);
+          toast({
+            title: "Session Resumed",
+            description: "Continuing your training session",
+          });
+        } else {
+          // Create new session
+          const newSession = await RadioSimulationAPI.createSession();
+          setSessionId(newSession.id);
+          toast({
+            title: "Session Started",
+            description: "New training session created",
+          });
+        }
+      } catch (error) {
+        console.error('Failed to initialize session:', error);
+        toast({
+          title: "Session Error",
+          description: "Failed to create training session",
+          variant: "destructive"
+        });
+      }
+    };
+
+    initializeSession();
+
+    // Cleanup: Complete session on unmount
+    return () => {
+      if (sessionId && callResults.length > 0) {
+        const averageScore = callResults.reduce((sum, r) => sum + r.score, 0) / callResults.length;
+        RadioSimulationAPI.completeSession(sessionId, callResults.length, averageScore).catch(console.error);
+      }
+    };
+  }, []); // Empty dependency - only run on mount/unmount
 
   // Initialize speech recognition on mount (only once)
   useEffect(() => {
@@ -190,74 +233,18 @@ const RadioSimulation = () => {
     };
   }, [currentCall, isLoading]); // Remove processUserResponse from deps to avoid circular dependency
 
-  // Generate random call
-  const generateCall = (): RadioCall => {
-    const addresses = [
-      '123 Main Street',
-      '456 Oak Avenue',
-      '789 Elm Drive',
-      '321 Pine Road',
-      '654 Maple Lane',
-      '987 Cedar Boulevard'
-    ];
-
-    const complaints = [
-      'chest pain',
-      'difficulty breathing',
-      'severe headache',
-      'abdominal pain',
-      'altered mental status',
-      'minor laceration',
-      'unconscious patient',
-      'fall from height'
-    ];
-
-    const unitNum = Math.floor(Math.random() * 20) + 1;
-    const address = addresses[Math.floor(Math.random() * addresses.length)];
-    const age = (Math.floor(Math.random() * 60) + 18).toString();
-    const gender = Math.random() > 0.5 ? 'Male' : 'Female';
-    const complaint = complaints[Math.floor(Math.random() * complaints.length)];
-
-    return { unitNumber: `Unit ${unitNum}`, address, age, gender, complaint };
+  // Generate call via backend API
+  const generateCall = async (): Promise<RadioCall> => {
+    if (!sessionId) {
+      throw new Error('No active session');
+    }
+    return await RadioSimulationAPI.generateCall(sessionId);
   };
 
-  // Text to speech using ElevenLabs
-  const textToSpeech = async (text: string, voiceId: string = '21m00Tcm4TlvDq8ikWAM'): Promise<string> => {
-    try {
-      if (!ELEVENLABS_API_KEY) {
-        throw new Error('ElevenLabs API key not configured');
-      }
-
-      const response = await fetch(`${ELEVENLABS_API_URL}/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': ELEVENLABS_API_KEY
-        },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: {
-            stability: 0.4,
-            similarity_boost: 0.75,
-            style: 0.35,
-            use_speaker_boost: true
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`TTS failed: ${response.status} ${errorText}`);
-      }
-
-      const audioBlob = await response.blob();
-      return URL.createObjectURL(audioBlob);
-    } catch (error) {
-      console.error('Text to speech error:', error);
-      throw error;
-    }
+  // Get audio via backend API (with caching)
+  const getAudio = async (text: string): Promise<string> => {
+    const result = await RadioSimulationAPI.getAudio(text);
+    return result.audioUrl;
   };
 
   // Play dispatcher call with dispatcher voice
@@ -266,17 +253,14 @@ const RadioSimulation = () => {
     const callToPlay = callParam ?? currentCall;
     if (!callToPlay) return;
 
-    const dispatchTextLocal = `${callToPlay.unitNumber}, respond to ${callToPlay.address} for a ${callToPlay.age} year old ${callToPlay.gender} patient for a report of ${callToPlay.complaint}`;
+    const dispatchTextLocal = callToPlay.dispatchText;
 
     // mark that dispatch is playing and not yet finished
     setDispatcherPlaying(true);
     setDispatcherFinished(false);
     try {
-      // Use dispatcher voice ID (professional, authoritative)
-      const dispatcherVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Professional voice for dispatcher
-
-      // If we prefetched audio for this call, use it to avoid network latency clipping the start.
-      const audioUrl = prefetchedAudioUrl ?? await textToSpeech(dispatchTextLocal, dispatcherVoiceId);
+      // Get audio from backend (with caching)
+      const audioUrl = prefetchedAudioUrl ?? await getAudio(dispatchTextLocal);
       // if we used the prefetched URL, clear the stored value so we don't reuse a stale blob
       if (prefetchedAudioUrl) setPrefetchedAudioUrl(null);
 
@@ -288,12 +272,12 @@ const RadioSimulation = () => {
       audio.onended = async () => {
         try {
           setIsSpeaking(false);
-          URL.revokeObjectURL(audioUrl);
+          // Don't revoke if from backend (it's a persistent URL)
 
           // small pause then play again
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          const audioUrl2 = await textToSpeech(dispatchTextLocal, dispatcherVoiceId);
+          const audioUrl2 = await getAudio(dispatchTextLocal);
           const audio2 = new Audio(audioUrl2);
           audioRef.current = audio2;
           setIsSpeaking(true);
@@ -303,7 +287,6 @@ const RadioSimulation = () => {
             setIsSpeaking(false);
             setDispatcherPlaying(false);
             setDispatcherFinished(true); // mark that dispatch finished and user may respond
-            URL.revokeObjectURL(audioUrl2);
           };
 
           await audio2.play();
@@ -328,90 +311,29 @@ const RadioSimulation = () => {
   };
 
   // Precompute dispatch text for UI (hidden until reveal)
-  const dispatchText = currentCall
-    ? `${currentCall.unitNumber}, respond to ${currentCall.address} for a ${currentCall.age} year old ${currentCall.gender} patient for a report of ${currentCall.complaint}`
-    : '';
+  const dispatchText = currentCall?.dispatchText || '';
 
   // Call Gemini to assess response
   const assessResponse = async (call: RadioCall, response: string): Promise<{ feedback: string; score: number }> => {
     try {
-      if (!GEMINI_API_KEY) {
-        throw new Error('Gemini API key not configured');
-      }
-
-      const expectedFormat = `"${call.unitNumber} responding emergently/non-emergently from [current location] to ${call.address} for a ${call.age} year old ${call.gender} patient with a report of ${call.complaint}"`;
-
-      const assessmentPrompt = `You are an EMT radio protocol instructor evaluating a student's radio response to a dispatcher call.
-
-DISPATCHER CALL:
-"${call.unitNumber} respond to ${call.address} for a ${call.age} year old ${call.gender} patient for a report of ${call.complaint}"
-
-STUDENT'S CURRENT LOCATION:
-"${currentLocation}"
-
-STUDENT RESPONSE:
-"${response}"
-
-EXPECTED RESPONSE FORMAT (approximate):
-${expectedFormat}
-
-Evaluate the student's response on these criteria:
-1. Did they acknowledge their unit number correctly? (${call.unitNumber})
-2. Did they include "responding" status (emergently or non-emergently)?
-3. Did they mention their current location or starting point? (Should be "${currentLocation}" or similar)
-4. Did they reiterate the destination/street address correctly? (${call.address})
-5. Did they reiterate the patient information correctly? (${call.age} year old ${call.gender} patient)
-6. Did they reiterate the general complaint/reason correctly? Do not require verbatim and be lenient of different expressions of the same complaint. For example, altered mental status and unconcious patient can be considered the same. (${call.complaint})
-7. Did they follow proper radio protocol (professional, concise, clear)?
-
-Provide ONLY a JSON response in this exact format (no markdown, no code blocks):
-{
-  "feedback": "Brief 1-2 sentence feedback on their performance",
-  "score": <number from 0-100 based on how well they followed protocol and reiterated information>
-}
-
-Score guidelines:
-- 90-100: Excellent - perfect protocol, all info reiterated correctly including location
-- 70-89: Good - proper format, minor issues with info reiteration
-- 50-69: Adequate - recognized most info, but protocol could be better or missing location
-- 0-49: Needs improvement - significant protocol or information errors`;
-
-      const messages = [
+      // Call backend API for assessment
+      const result = await RadioSimulationAPI.assessResponse(
+        call.id,
+        response,
         {
-          role: 'user',
-          parts: [{ text: assessmentPrompt }]
+          unitNumber: call.unitNumber,
+          startingAddress: call.startingAddress,
+          incidentAddress: call.incidentAddress,
+          age: call.age,
+          gender: call.gender,
+          complaint: call.complaint,
         }
-      ];
+      );
 
-      const resp = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: messages
-        })
-      });
-
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `API error: ${resp.status}`);
-      }
-
-      const data = await resp.json();
-      const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-
-      // Parse JSON from response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        return {
-          feedback: result.feedback || 'No feedback',
-          score: result.score || 0
-        };
-      }
-
-      throw new Error('Invalid response format from Gemini');
+      return {
+        feedback: result.feedback,
+        score: result.score
+      };
     } catch (error) {
       console.error('Assessment error:', error);
       throw error;
@@ -457,11 +379,16 @@ Score guidelines:
   };
 
   // Start new call
-  const startNewCall = () => {
-    const newCall = generateCall();
-    const locations = ['Station 1', 'Station 2', 'Station 3', 'Highway 101', 'Downtown Station'];
-    const newLocation = locations[Math.floor(Math.random() * locations.length)];
-    
+  const startNewCall = async () => {
+    if (!sessionId) {
+      toast({
+        title: "No session",
+        description: "Please wait for session to initialize",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Stop and cleanup any previous audio/recognition
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
@@ -471,43 +398,51 @@ Score guidelines:
       audioRef.current = null;
     }
 
-    // Set up new call but DO NOT auto-play. User must press Play Call to hear it.
-    setCurrentCall(newCall);
-    setCurrentLocation(newLocation);
-    setUserResponse('');
-    setRevealDispatch(false);
-    setDispatcherPlaying(false);
-    setDispatcherFinished(false);
-    setCallCount(prev => prev + 1);
-    setLastAssessment(null);
-    transcriptBufferRef.current = '';
-    // Clear any previously prefetched audio and start prefetch for the new call
+    // Clear any previously prefetched audio
+    if (prefetchedAudioUrl) {
+      setPrefetchedAudioUrl(null);
+    }
+
     try {
-      if (prefetchedAudioUrl) {
-        try { URL.revokeObjectURL(prefetchedAudioUrl); } catch {}
-        setPrefetchedAudioUrl(null);
+      setIsPrefetchingAudio(true);
+      // Generate call from backend (includes all call details + dispatchText)
+      const newCall = await generateCall();
+      
+      // Set up new call but DO NOT auto-play. User must press Play Call to hear it.
+      setCurrentCall(newCall);
+      setCurrentLocation(newCall.startingAddress); // Use starting address as current location
+      setUserResponse('');
+      setRevealDispatch(false);
+      setDispatcherPlaying(false);
+      setDispatcherFinished(false);
+      setCallCount(prev => prev + 1);
+      setLastAssessment(null);
+      transcriptBufferRef.current = '';
+
+      // Prefetch audio for the new call
+      try {
+        const audioUrl = await getAudio(newCall.dispatchText);
+        setPrefetchedAudioUrl(audioUrl);
+      } catch (err) {
+        console.debug('Prefetch audio failed:', err);
+      } finally {
+        setIsPrefetchingAudio(false);
       }
 
-      // Kick off background prefetch of dispatcher audio so Play Call starts immediately
-      const dispatcherVoiceId = '21m00Tcm4TlvDq8ikWAM';
-      const dispatchTextLocal = `${newCall.unitNumber}, respond to ${newCall.address} for a ${newCall.age} year old ${newCall.gender} patient for a report of ${newCall.complaint}`;
-      setIsPrefetchingAudio(true);
-      textToSpeech(dispatchTextLocal, dispatcherVoiceId)
-        .then(url => {
-          setPrefetchedAudioUrl(url);
-        })
-        .catch(err => {
-          console.debug('Prefetch audio failed:', err);
-        })
-        .finally(() => setIsPrefetchingAudio(false));
-    } catch (e) {
-      // ignore prefetch errors
+      // UX hint: tell user to press Play Call
+      toast({
+        title: 'New call ready',
+        description: 'Press Play Call to hear the dispatch',
+      });
+    } catch (error) {
+      console.error('Failed to generate call:', error);
+      setIsPrefetchingAudio(false);
+      toast({
+        title: "Call Generation Failed",
+        description: "Failed to generate new call. Please try again.",
+        variant: "destructive"
+      });
     }
-    // UX hint: tell user to press Play Call
-    toast({
-      title: 'New call ready',
-      description: 'Press Play Call to hear the dispatch',
-    });
   };
 
   // Mic toggle
