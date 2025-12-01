@@ -16,11 +16,11 @@ class ScenarioService {
    */
   async generateCall(sessionId) {
     try {
-      // Query random station location
+      // Query random station location (destination = false)
       const { data: stations, error: stationError } = await this.supabase
         .from('locations')
         .select('address')
-        .eq('destination', 'station')
+        .eq('destination', false)
         .eq('is_active', true);
 
       if (stationError) throw stationError;
@@ -28,11 +28,11 @@ class ScenarioService {
         throw new Error('No active station locations found in database');
       }
 
-      // Query random incident location
+      // Query random incident location (destination = true)
       const { data: incidents, error: incidentError } = await this.supabase
         .from('locations')
         .select('address')
-        .eq('destination', 'incident')
+        .eq('destination', true)
         .eq('is_active', true);
 
       if (incidentError) throw incidentError;
@@ -57,19 +57,19 @@ class ScenarioService {
       const complaint = complaints[Math.floor(Math.random() * complaints.length)].name;
 
       // Randomize demographics
-      const unitNumber = `Unit ${Math.floor(Math.random() * 20) + 1}`;
+      const unitNum = Math.floor(Math.random() * 20) + 1; // 1-20
       const age = Math.floor(Math.random() * 61) + 18; // 18-78
       const gender = Math.random() > 0.5 ? 'Male' : 'Female';
 
       // Build dispatch text
-      const dispatchText = `${unitNumber}, respond to ${incidentAddress} for a ${age} year old ${gender} patient for a report of ${complaint}`;
+      const dispatchText = `Unit ${unitNum}, respond to ${incidentAddress} for a ${age} year old ${gender} patient for a report of ${complaint}`;
 
       // Insert call into database
       const { data: call, error: insertError } = await this.supabase
         .from('radio_calls')
         .insert({
           session_id: sessionId,
-          unit_number: unitNumber,
+          unit_num: unitNum,
           starting_address: startingAddress,
           incident_address: incidentAddress,
           age: age,
@@ -86,7 +86,7 @@ class ScenarioService {
 
       return {
         id: call.id,
-        unitNumber,
+        unitNumber: `Unit ${unitNum}`,
         startingAddress,
         incidentAddress,
         age,

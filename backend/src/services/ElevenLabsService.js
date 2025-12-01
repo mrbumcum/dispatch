@@ -65,14 +65,19 @@ class ElevenLabsService {
   async uploadToStorage(audioBuffer, fileName, supabaseClient) {
     try {
       const filePath = `tts-cache/${fileName}.mp3`;
+      
+      // Debug logging
+      logger.debug(`Attempting to upload to bucket: radio-audio`);
+      logger.debug(`File path: ${filePath}`);
+      logger.debug(`Buffer size: ${audioBuffer.length} bytes`);
 
       const { data, error } = await supabaseClient
         .storage
-        .from('audio-cache')
+        .from('radio-audio')
         .upload(filePath, audioBuffer, {
           contentType: 'audio/mpeg',
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
 
       if (error) throw error;
@@ -80,7 +85,7 @@ class ElevenLabsService {
       // Get public URL
       const { data: { publicUrl } } = supabaseClient
         .storage
-        .from('audio-cache')
+        .from('radio-audio')
         .getPublicUrl(filePath);
 
       logger.info(`Uploaded audio to storage: ${publicUrl}`);

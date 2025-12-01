@@ -15,7 +15,7 @@ CREATE TABLE locations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   address TEXT NOT NULL,
-  destination TEXT CHECK (destination IN ('station', 'incident')),
+  destination BOOLEAN NOT NULL, -- false = station, true = incident
   is_active BOOLEAN DEFAULT true
 );
 
@@ -38,8 +38,8 @@ CREATE TABLE radio_sessions (
   started_at TIMESTAMPTZ DEFAULT NOW(),
   ended_at TIMESTAMPTZ,
   total_calls INT DEFAULT 0,
-  average_score NUMERIC(5,2),
-  status TEXT CHECK (status IN ('active', 'completed', 'abandoned')) DEFAULT 'active'
+  avg_score NUMERIC(5,2),
+  status TEXT CHECK (status IN ('active', 'complete', 'abandoned')) DEFAULT 'active'
 );
 
 -- Radio calls (individual dispatch scenarios)
@@ -49,9 +49,9 @@ CREATE TABLE radio_calls (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   
   -- Scenario details (some from DB, some randomized)
-  unit_number TEXT NOT NULL,              -- Randomized: "Unit 1" to "Unit 20"
-  starting_address TEXT NOT NULL,         -- From locations WHERE type='station'
-  incident_address TEXT NOT NULL,         -- From locations WHERE type='incident'
+  unit_num INT NOT NULL,                  -- Randomized: 1 to 20
+  starting_address TEXT NOT NULL,         -- From locations WHERE destination=false
+  incident_address TEXT NOT NULL,         -- From locations WHERE destination=true
   age INT NOT NULL,                       -- Randomized: 18-78
   gender TEXT CHECK (gender IN ('Male', 'Female')), -- Randomized
   complaint TEXT NOT NULL,                -- From complaints table
@@ -247,20 +247,20 @@ CREATE POLICY "Authenticated users can view active complaints"
 
 -- Default station addresses
 INSERT INTO locations (address, destination, is_active) VALUES
-  ('Station 1', 'station', true),
-  ('Station 2', 'station', true),
-  ('Station 3', 'station', true),
-  ('Highway 101', 'station', true),
-  ('Downtown Station', 'station', true);
+  ('Station 1', false, true),
+  ('Station 2', false, true),
+  ('Station 3', false, true),
+  ('Highway 101', false, true),
+  ('Downtown Station', false, true);
 
 -- Default incident addresses
 INSERT INTO locations (address, destination, is_active) VALUES
-  ('123 Main Street', 'incident', true),
-  ('456 Oak Avenue', 'incident', true),
-  ('789 Elm Drive', 'incident', true),
-  ('321 Pine Road', 'incident', true),
-  ('654 Maple Lane', 'incident', true),
-  ('987 Cedar Boulevard', 'incident', true);
+  ('123 Main Street', true, true),
+  ('456 Oak Avenue', true, true),
+  ('789 Elm Drive', true, true),
+  ('321 Pine Road', true, true),
+  ('654 Maple Lane', true, true),
+  ('987 Cedar Boulevard', true, true);
 
 -- Default complaints
 INSERT INTO complaints (name, is_active) VALUES
@@ -281,20 +281,20 @@ INSERT INTO complaints (name, is_active) VALUES
 CREATE OR REPLACE FUNCTION update_user_progress_on_session_complete()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+  IF NEW.status = 'complete' AND OLD.status != 'complete' THEN
     INSERT INTO user_progress (user_id, total_radio_sessions, total_radio_calls, radio_average_score, last_activity_date)
     VALUES (
       NEW.user_id,
       1,
       NEW.total_calls,
-      NEW.average_score,
+      NEW.avg_score,
       CURRENT_DATE
     )
     ON CONFLICT (user_id) DO UPDATE SET
       total_radio_sessions = user_progress.total_radio_sessions + 1,
       total_radio_calls = user_progress.total_radio_calls + NEW.total_calls,
       radio_average_score = (
-        (user_progress.radio_average_score * user_progress.total_radio_sessions + NEW.average_score) /
+        (user_progress.radio_average_score * user_progress.total_radio_sessions + NEW.avg_score) /
         (user_progress.total_radio_sessions + 1)
       ),
       last_activity_date = CURRENT_DATE,

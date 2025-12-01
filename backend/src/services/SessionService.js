@@ -51,8 +51,8 @@ class SessionService {
         .update({
           ended_at: new Date().toISOString(),
           total_calls: totalCalls,
-          average_score: averageScore,
-          status: 'completed'
+          avg_score: averageScore,
+          status: 'complete'
         })
         .eq('id', sessionId)
         .select()
@@ -128,24 +128,20 @@ class SessionService {
    */
   async getActiveSession(userId) {
     try {
-      const { data: session, error } = await this.supabase
+      const { data: sessions, error } = await this.supabase
         .from('radio_sessions')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'active')
         .order('started_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No active session found
-          return null;
-        }
         throw error;
       }
 
-      return session;
+      // Return first session or null if array is empty
+      return sessions && sessions.length > 0 ? sessions[0] : null;
     } catch (error) {
       logger.error('Failed to get active session:', error);
       throw error;
@@ -162,14 +158,14 @@ class SessionService {
       // Get current session stats
       const { data: session, error: fetchError } = await this.supabase
         .from('radio_sessions')
-        .select('total_calls, average_score')
+        .select('total_calls, avg_score')
         .eq('id', sessionId)
         .single();
 
       if (fetchError) throw fetchError;
 
       const currentTotal = session.total_calls || 0;
-      const currentAvg = session.average_score || 0;
+      const currentAvg = session.avg_score || 0;
 
       // Calculate new running average
       const newTotal = currentTotal + 1;
@@ -180,7 +176,7 @@ class SessionService {
         .from('radio_sessions')
         .update({
           total_calls: newTotal,
-          average_score: parseFloat(newAvg.toFixed(2))
+          avg_score: parseFloat(newAvg.toFixed(2))
         })
         .eq('id', sessionId);
 

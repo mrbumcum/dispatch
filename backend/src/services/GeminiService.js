@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 class GeminiService {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    this.apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    this.apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   }
 
   /**

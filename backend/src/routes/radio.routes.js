@@ -60,13 +60,13 @@ router.post('/session/complete', async (req, res, next) => {
 });
 
 /**
- * GET /api/radio/session/:sessionId
- * Get session details
+ * GET /api/radio/session/active
+ * Get user's active session (if any)
  */
-router.get('/session/:sessionId', async (req, res, next) => {
+router.get('/session/active', async (req, res, next) => {
   try {
-    const { sessionId } = req.params;
-    const session = await sessionService.getSession(sessionId);
+    const userId = req.user.id;
+    const session = await sessionService.getActiveSession(userId);
     
     res.json({ session });
   } catch (error) {
@@ -75,13 +75,13 @@ router.get('/session/:sessionId', async (req, res, next) => {
 });
 
 /**
- * GET /api/radio/session/active
- * Get user's active session (if any)
+ * GET /api/radio/session/:sessionId
+ * Get session details
  */
-router.get('/session/active', async (req, res, next) => {
+router.get('/session/:sessionId', async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const session = await sessionService.getActiveSession(userId);
+    const { sessionId } = req.params;
+    const session = await sessionService.getSession(sessionId);
     
     res.json({ session });
   } catch (error) {
